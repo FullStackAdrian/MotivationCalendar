@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>2026 — Interactive Calendar</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: #0a0a0a;
+      color: #fff;
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 20px;
+    }
+
+    h1 {
+      font-size: 3rem;
+      font-weight: 100;
+      letter-spacing: 0.5em;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+    }
+
+    .subtitle {
+      font-size: 0.75rem;
+      color: #555;
+      letter-spacing: 0.3em;
+      margin-bottom: 50px;
+    }
+
+    .calendar {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(52px, 1fr));
+      gap: 6px;
+      max-width: 720px;
+      width: 100%;
+    }
+
+    .day {
+      aspect-ratio: 1 / 1;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.65rem;
+      font-weight: 300;
+      letter-spacing: 0.05em;
+      cursor: default;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      user-select: none;
+    }
+
+    .day.past {
+      background: #111;
+      color: transparent;
+      cursor: default;
+    }
+
+    .day.future {
+      background: #fff;
+      color: #111;
+      cursor: pointer;
+    }
+
+    .day.future:hover {
+      transform: scale(1.12);
+      box-shadow: 0 0 20px rgba(255,255,255,0.15);
+    }
+
+    .day.color-red   { background: #e63946; color: #fff; }
+    .day.color-green { background: #2d6a4f; color: #fff; }
+    .day.color-black { background: #111; color: #fff; }
+
+    .day.color-red:hover,
+    .day.color-green:hover,
+    .day.color-black:hover {
+      transform: scale(1.12);
+    }
+
+    .legend {
+      display: flex;
+      gap: 20px;
+      margin-top: 50px;
+      font-size: 0.65rem;
+      color: #555;
+      letter-spacing: 0.15em;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .legend-box {
+      width: 12px; height: 12px;
+      border-radius: 2px;
+    }
+
+    .legend-box.lb-past    { background: #111; border: 1px solid #333; }
+    .legend-box.lb-future  { background: #fff; }
+    .legend-box.lb-red     { background: #e63946; }
+    .legend-box.lb-green   { background: #2d6a4f; }
+  </style>
+</head>
+<body>
+
+  <h1>2026</h1>
+  <p class="subtitle">Click future days to cycle colors</p>
+
+  <div class="calendar" id="calendar"></div>
+
+  <div class="legend">
+    <div class="legend-item"><div class="legend-box lb-past"></div>Pasado</div>
+    <div class="legend-item"><div class="legend-box lb-future"></div>Futuro</div>
+    <div class="legend-item"><div class="legend-box lb-red"></div>Rojo</div>
+    <div class="legend-item"><div class="legend-box lb-green"></div>Verde</div>
+  </div>
+
+  <script>
+    const calendar = document.getElementById('calendar');
+    const totalDays = 365;
+
+    // Calculate day-of-year for today
+    const today = new Date();
+    const currentYear = today.getFullYear();
+
+    // Reference date: today. If current year is 2026, use real day-of-year.
+    // Otherwise, simulate: all days are "future" (white).
+    let todayDayOfYear;
+
+    if (currentYear === 2026) {
+      const start = new Date(2026, 0, 1);
+      const diff = today - start;
+      todayDayOfYear = Math.floor(diff / (1000 * 60 * 60 * 24)) + 1;
+    } else {
+      // Before 2026 → all future. After 2026 → all past.
+      todayDayOfYear = currentYear < 2026 ? 0 : 366;
+    }
+
+    const colorStates = [null, 'color-black', 'color-red', 'color-green'];
+    // Click cycle: white(null) → black → red → green → white...
+    // But the user said: 3 clicks cycle between black, red, green
+    // So: click 1 → black, click 2 → red, click 3 → green, click 4 → white (reset)
+
+    let clickCounts = new Array(totalDays + 1).fill(0);
+
+    for (let i = 1; i <= totalDays; i++) {
+      const day = document.createElement('div');
+      day.classList.add('day');
+
+      if (i <= todayDayOfYear) {
+        day.classList.add('past');
+      } else {
+        day.classList.add('future');
+        day.textContent = i;
+        day.dataset.index = i;
+
+        day.addEventListener('click', () => {
+          let clicks = clickCounts[i];
+          clicks = (clicks + 1) % 4;
+          clickCounts[i] = clicks;
+
+          day.classList.remove('future', 'color-black', 'color-red', 'color-green');
+
+          if (clicks === 0) {
+            day.classList.add('future');
+          } else {
+            day.classList.add(colorStates[clicks]);
+          }
+        });
+      }
+
+      calendar.appendChild(day);
+    }
+  </script>
+</body>
+</html>
