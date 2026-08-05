@@ -17,120 +17,12 @@
 </head>
 
 <body>
-
-  <!-- Sección de Login -->
-  <div id="login-section" class="auth-container">
-    <div class="auth-box">
-      <h1>2026 Tracker</h1>
-      <p class="auth-subtitle">Inicia sesión para sincronizar tu progreso</p>
-      
-      <form id="login-form" class="auth-form">
-        <div class="form-group">
-          <label for="login-identifier">Usuario o Email</label>
-          <input type="text" id="login-identifier" required autocomplete="username">
-        </div>
-        
-        <div class="form-group">
-          <label for="login-password">Contraseña</label>
-          <input type="password" id="login-password" required autocomplete="current-password">
-        </div>
-        
-        <button type="submit" class="btn-primary">Entrar</button>
-      </form>
-      
-      <p class="auth-switch">
-        ¿No tienes cuenta? 
-        <a href="#" id="show-register">Regístrate</a>
-      </p>
-    </div>
-  </div>
-
-  <!-- Sección de Registro -->
-  <div id="register-section" class="auth-container" style="display: none;">
-    <div class="auth-box">
-      <h1>Crear Cuenta</h1>
-      <p class="auth-subtitle">Sincroniza tu progreso en todos tus dispositivos</p>
-      
-      <form id="register-form" class="auth-form">
-        <div class="form-group">
-          <label for="register-username">Usuario</label>
-          <input type="text" id="register-username" required autocomplete="username">
-        </div>
-        
-        <div class="form-group">
-          <label for="register-email">Email</label>
-          <input type="email" id="register-email" required autocomplete="email">
-        </div>
-        
-        <div class="form-group">
-          <label for="register-password">Contraseña</label>
-          <input type="password" id="register-password" required autocomplete="new-password" minlength="6">
-        </div>
-        
-        <button type="submit" class="btn-primary">Registrarse</button>
-      </form>
-      
-      <p class="auth-switch">
-        ¿Ya tienes cuenta? 
-        <a href="#" id="show-login">Inicia sesión</a>
-      </p>
-    </div>
-  </div>
-
-  <!-- Aplicación Principal -->
-  <div id="app-section" style="display: none;">
-    <header>
-      <div class="user-header">
-        <span id="user-info"></span>
-        <button id="logout-btn" class="btn-logout">Salir</button>
-      </div>
-      <div class="year">2026</div>
-      <div class="tagline">Cada día que pasa, ya no vuelve</div>
-    </header>
-
-    <div class="stats">
-      <div class="stat">
-        <div class="stat-n" id="cnt-done">0</div>
-        <div class="stat-label"><span class="dot" style="background:var(--done)"></span>Todo bien</div>
-      </div>
-      <div class="stat">
-        <div class="stat-n" id="cnt-partial">0</div>
-        <div class="stat-label"><span class="dot" style="background:var(--partial)"></span>A medias</div>
-      </div>
-      <div class="stat">
-        <div class="stat-n" id="cnt-miss">0</div>
-        <div class="stat-label"><span class="dot" style="background:var(--miss)"></span>Sin cumplir</div>
-      </div>
-      <div class="stat">
-        <div class="stat-n" id="cnt-left">—</div>
-        <div class="stat-label">Días restantes</div>
-      </div>
-    </div>
-
-    <div class="grid" id="grid"></div>
-
-    <div class="legend">
-      <div class="legend-item">
-        <div class="swatch sw-past"></div>Pasado sin marcar
-      </div>
-      <div class="legend-item">
-        <div class="swatch sw-future"></div>Por venir
-      </div>
-      <div class="legend-item">
-        <div class="swatch sw-done"></div>Todo bien
-      </div>
-      <div class="legend-item">
-        <div class="swatch sw-partial"></div>A medias
-      </div>
-      <div class="legend-item">
-        <div class="swatch sw-miss"></div>Sin cumplir
-      </div>
-    </div>
-
-    <footer>365 oportunidades &nbsp;·&nbsp; Aprovéchalas</footer>
-  </div>
+  <div id="app"></div>
 
   <script src="./assets/js/api-client.js"></script>
+  <script src="./assets/js/views/login.view.js"></script>
+  <script src="./assets/js/views/register.view.js"></script>
+  <script src="./assets/js/views/main.view.js"></script>
   <script src="./assets/js/app.js"></script>
 </body>
 

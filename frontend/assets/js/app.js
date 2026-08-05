@@ -1,15 +1,8 @@
 /**
  * Aplicación principal del frontend
  * Maneja la UI, autenticación y sincronización con el backend
+ * Arquitectura MVC refactorizada usando Views
  */
-
-// Referencias DOM
-const grid = document.getElementById('grid');
-const loginSection = document.getElementById('login-section');
-const registerSection = document.getElementById('register-section');
-const appSection = document.getElementById('app-section');
-const userInfo = document.getElementById('user-info');
-const logoutBtn = document.getElementById('logout-btn');
 
 // Configuración
 const TOTAL = 365;
@@ -21,19 +14,44 @@ let clicks = new Array(TOTAL + 1).fill(0);
 let currentUser = null;
 let isServerAvailable = false;
 
-// Calcular día del año actual
-const today = new Date();
-const yr = today.getFullYear();
-let todayDoy;
-if (yr === 2026) {
-  todayDoy = Math.floor((today - new Date(2026, 0, 1)) / 86400000) + 1;
-} else {
-  todayDoy = yr < 2026 ? 0 : 366;
+// Instancias de las Views
+let loginView = null;
+let registerView = null;
+let mainView = null;
+
+// Contenedor principal de la app
+const appContainer = document.getElementById('app');
+
+/* ── INICIALIZACIÓN DE VISTAS ── */
+
+function initializeViews() {
+  loginView = new LoginView(appContainer);
+  registerView = new RegisterView(appContainer);
+  mainView = new MainView(appContainer);
+  
+  // Configurar eventos de navegación entre vistas
+  setupNavigationEvents();
+}
+
+function setupNavigationEvents() {
+  // Login -> Register
+  loginView.onShowRegister(() => {
+    loginView.hide();
+    registerView.show();
+  });
+  
+  // Register -> Login
+  registerView.onShowLogin(() => {
+    registerView.hide();
+    loginView.show();
+  });
 }
 
 /* ── AUTENTICACIÓN ── */
 
 function checkAuth() {
+  initializeViews();
+  
   if (window.apiClient.isAuthenticated()) {
     showApp();
   } else {
@@ -42,78 +60,66 @@ function checkAuth() {
 }
 
 function showLogin() {
-  loginSection.style.display = 'block';
-  registerSection.style.display = 'none';
-  appSection.style.display = 'none';
+  loginView.show();
+  registerView.hide();
+  mainView.hide();
 }
 
 function showRegister() {
-  loginSection.style.display = 'none';
-  registerSection.style.display = 'block';
-  appSection.style.display = 'none';
+  loginView.hide();
+  registerView.show();
+  mainView.hide();
 }
 
 async function showApp() {
-  loginSection.style.display = 'none';
-  registerSection.style.display = 'none';
-  appSection.style.display = 'block';
-
-  // Intentar cargar datos del servidor
-  await loadFromServer();
+  loginView.hide();
+  registerView.hide();
   
-  // Renderizar grid y estadísticas
-  renderGrid();
-  updateStats();
+  // Obtener usuario actual
+  const user = window.apiClient.getCurrentUser();
+  if (user) {
+    currentUser = user;
+    mainView.show(user);
+    
+    // Configurar evento de logout
+    mainView.onLogout(handleLogout);
+    
+    // Intentar cargar datos del servidor
+    await loadFromServer();
+    
+    // Renderizar grid y estadísticas
+    mainView.renderGrid(clicks, handleDayClick);
+    updateStats();
+  } else {
+    // Si no hay usuario, volver al login
+    showLogin();
+  }
 }
 
-/* ── EVENTOS DE AUTENTICACIÓN ── */
-
-document.getElementById('show-register').addEventListener('click', (e) => {
-  e.preventDefault();
-  showRegister();
-});
-
-document.getElementById('show-login').addEventListener('click', (e) => {
-  e.preventDefault();
-  showLogin();
-});
-
-document.getElementById('login-form').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const identifier = document.getElementById('login-identifier').value;
-  const password = document.getElementById('login-password').value;
-
-  try {
-    const result = await window.apiClient.login(identifier, password);
-    currentUser = result.user;
-    userInfo.textContent = `Hola, ${currentUser.username}`;
-    await showApp();
-  } catch (error) {
-    alert(error.message || 'Error al iniciar sesión');
-  }
-});
-
-document.getElementById('register-form').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const username = document.getElementById('register-username').value;
-  const email = document.getElementById('register-email').value;
-  const password = document.getElementById('register-password').value;
-
-  try {
-    const result = await window.apiClient.register(username, email, password);
-    currentUser = result.user;
-    userInfo.textContent = `Hola, ${currentUser.username}`;
-    await showApp();
-  } catch (error) {
-    alert(error.message || 'Error al registrar');
-  }
-});
-
-logoutBtn.addEventListener('click', () => {
+function handleLogout() {
   window.apiClient.logout();
   currentUser = null;
-  location.reload();
-});
+  clicks = new Array(TOTAL + 1).fill(0);
+  showLogin();
+}
+
+async function handleDayClick(dayNum, locked) {
+  if (locked) {
+    clicks[dayNum] = clicks[dayNum] === 0 ? 1 : (clicks[dayNum] % 3) + 1;
+  } else {
+    clicks[dayNum] = (clicks[dayNum] + 1) % 4;
+  }
+  
+  // Actualizar visualmente solo el día modificado
+  mainView.updateDayVisual(dayNum, clicks, locked);
+  saveToLocal();
+  updateStats();
+  
+  // Sincronizar con servidor si está disponible
+  if (isServerAvailable) {
+    await saveToServer(dayNum);
+  }
+}
 
 /* ── SINCRONIZACIÓN ── */
 
@@ -208,61 +214,71 @@ function indexToStatus(index) {
 /* ── ESTADÍSTICAS ── */
 
 function updateStats() {
+  // Calcular día del año actual
+  const today = new Date();
+  const yr = today.getFullYear();
+  let todayDoy;
+  if (yr === 2026) {
+    todayDoy = Math.floor((today - new Date(2026, 0, 1)) / 86400000) + 1;
+  } else {
+    todayDoy = yr < 2026 ? 0 : 366;
+  }
+  
   let d = 0, p = 0, m = 0;
   for (let i = 1; i <= TOTAL; i++) {
     if (clicks[i] === 1) d++;
     else if (clicks[i] === 2) p++;
     else if (clicks[i] === 3) m++;
   }
-  document.getElementById('cnt-done').textContent = d;
-  document.getElementById('cnt-partial').textContent = p;
-  document.getElementById('cnt-miss').textContent = m;
-  document.getElementById('cnt-left').textContent = Math.max(0, TOTAL - todayDoy);
-}
-
-/* ── RENDERIZADO ── */
-
-function applyState(el, i, locked) {
-  el.className = 'day';
-  if (clicks[i] === 0) {
-    if (locked) el.classList.add('past');
-    else if (i === todayDoy) el.classList.add('today');
-    else el.classList.add('future');
-  } else {
-    el.classList.add('s-' + states[clicks[i]]);
-  }
-}
-
-function renderGrid() {
-  grid.innerHTML = '';
   
-  for (let i = 1; i <= TOTAL; i++) {
-    const el = document.createElement('div');
-    const locked = i < todayDoy;
+  // Usar la vista para actualizar estadísticas
+  mainView.updateStats({
+    done: d,
+    partial: p,
+    miss: m,
+    left: Math.max(0, TOTAL - todayDoy)
+  });
+}
 
-    applyState(el, i, locked);
+/* ── EVENTOS DE AUTENTICACIÓN ── */
 
-    el.addEventListener('click', async () => {
-      if (locked) {
-        clicks[i] = clicks[i] === 0 ? 1 : (clicks[i] % 3) + 1;
-      } else {
-        clicks[i] = (clicks[i] + 1) % 4;
-      }
-      
-      applyState(el, i, locked);
-      saveToLocal();
-      updateStats();
-      
-      // Sincronizar con servidor si está disponible
-      if (isServerAvailable) {
-        await saveToServer(i);
-      }
-    });
-
-    grid.appendChild(el);
-  }
+// Configurar eventos de login y registro usando las Views
+function setupAuthEvents() {
+  // Login
+  loginView.onSubmit(async (data) => {
+    loginView.setLoading(true);
+    
+    try {
+      const result = await window.apiClient.login(data.identifier, data.password);
+      currentUser = result.user;
+      loginView.clearForm();
+      await showApp();
+    } catch (error) {
+      loginView.showError(error.message || 'Error al iniciar sesión');
+    } finally {
+      loginView.setLoading(false);
+    }
+  });
+  
+  // Registro
+  registerView.onSubmit(async (data) => {
+    registerView.setLoading(true);
+    
+    try {
+      const result = await window.apiClient.register(data.username, data.email, data.password);
+      currentUser = result.user;
+      registerView.clearForm();
+      await showApp();
+    } catch (error) {
+      registerView.showError(error.message || 'Error al registrar');
+    } finally {
+      registerView.setLoading(false);
+    }
+  });
 }
 
 /* ── INICIALIZACIÓN ── */
 
+// Inicializar aplicación
 checkAuth();
+setupAuthEvents();

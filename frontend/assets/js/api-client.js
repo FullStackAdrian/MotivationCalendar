@@ -136,6 +136,35 @@ class APIClient {
   }
 
   /**
+   * Obtiene el usuario actual decodificando el token
+   * @returns {Object|null} Datos del usuario o null
+   */
+  getCurrentUser() {
+    if (!this.token) return null;
+    
+    try {
+      // Decodificar JWT para obtener información del usuario
+      const base64Url = this.token.split('.')[1];
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => 
+        '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)
+      ).join(''));
+      
+      const payload = JSON.parse(jsonPayload);
+      
+      // Retornar solo datos públicos del usuario
+      return {
+        id: payload.id || payload.userId,
+        username: payload.username,
+        email: payload.email
+      };
+    } catch (error) {
+      console.error('Error al decodificar token:', error);
+      return null;
+    }
+  }
+
+  /**
    * Obtiene el progreso del usuario
    * @returns {Promise<Object>} Progreso diario
    */
