@@ -3,8 +3,24 @@
  * Maneja autenticación y sincronización de datos
  */
 
+// Detectar baseURL automáticamente según el entorno
+const getBaseURL = () => {
+  // Si estamos en GitHub Pages, usar la URL del repositorio
+  const hostname = window.location.hostname;
+  
+  if (hostname.includes('github.io')) {
+    // GitHub Pages: usar GitHub Actions para backend o servicio externo
+    // Por defecto, apuntamos a un servicio desplegado (ej. Railway, Render, etc.)
+    // El usuario debe configurar esta variable si usa otro proveedor
+    return window.GITHUB_PAGES_API_URL || 'https://tu-backend.herokuapp.com';
+  }
+  
+  // Desarrollo local o servidor Node.js directo
+  return '';
+};
+
 class APIClient {
-  constructor(baseURL = '') {
+  constructor(baseURL = getBaseURL()) {
     this.baseURL = baseURL;
     this.token = localStorage.getItem('authToken');
   }
