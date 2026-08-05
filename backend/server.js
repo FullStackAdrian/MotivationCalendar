@@ -24,8 +24,8 @@ app.get('/api/me', authenticateToken, (req, res) => {
 // Servir archivos estáticos del frontend
 app.use(express.static(path.join(__dirname, '..', 'frontend')));
 
-// Catch-all para servir el frontend
-app.get('*', (req, res) => {
+// Catch-all para servir el frontend (Express 5.x usa regex)
+app.get(/\/.*/, (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'frontend', 'index.html'));
 });
 
