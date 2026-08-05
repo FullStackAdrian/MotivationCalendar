@@ -14,6 +14,7 @@
   <link rel="apple-touch-icon" href="./assets/images/favicon-180.png">
 
   <link rel="stylesheet" href="./assets/css/styles.css">
+  <script src="./assets/js/api-client.js"></script>
 </head>
 
 <body>
@@ -63,6 +64,34 @@
   </div>
 
   <footer>365 oportunidades &nbsp;·&nbsp; Aprovéchalas</footer>
+
+  <!-- AUTH SECTION -->
+  <div id="auth-container">
+    <div id="auth-form">
+      <div class="auth-tabs">
+        <button class="auth-tab active" data-tab="login">Iniciar Sesión</button>
+        <button class="auth-tab" data-tab="register">Registrarse</button>
+      </div>
+      
+      <form id="login-form" class="auth-form-content">
+        <input type="text" id="login-username" placeholder="Usuario" required>
+        <input type="password" id="login-password" placeholder="Contraseña" required>
+        <button type="submit">Entrar</button>
+      </form>
+      
+      <form id="register-form" class="auth-form-content" style="display: none;">
+        <input type="text" id="reg-username" placeholder="Usuario" required>
+        <input type="password" id="reg-password" placeholder="Contraseña" required>
+        <input type="password" id="reg-confirm" placeholder="Confirmar contraseña" required>
+        <button type="submit">Registrarse</button>
+      </form>
+    </div>
+    
+    <div id="user-info" style="display: none;">
+      <span class="user-greeting">Hola, <strong id="username-display"></strong></span>
+      <button id="logout-btn" class="logout-btn">Cerrar sesión</button>
+    </div>
+  </div>
 
   <script src="./assets/js/app.js"></script>
 </body>
