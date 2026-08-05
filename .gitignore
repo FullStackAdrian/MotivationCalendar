@@ -1,10 +1,7 @@
-```
-# Dependencies
-node_modules/
+```gitignore
+# Environment
+.env.local
 
-# Environment variables
-.env
-
-# Package lock file
-package-lock.json
+# Editors
+.vscode/
 ```
