@@ -3,14 +3,14 @@
  * Centraliza las variables de entorno y configuración global
  */
 
-// Validar que JWT_SECRET esté configurado en producción
-if (process.env.NODE_ENV === 'production' && !process.env.JWT_SECRET) {
-  console.warn('⚠️  WARNING: JWT_SECRET no está configurado. Usa un valor seguro en producción.');
+// Validar que JWT_SECRET esté configurado
+if (!process.env.JWT_SECRET) {
+  throw new Error('❌ ERROR: JWT_SECRET no está configurado. Define la variable de entorno JWT_SECRET en tu archivo .env');
 }
 
 const config = {
   port: process.env.PORT || 3000,
-  jwtSecret: process.env.JWT_SECRET || 'tu-secreto-super-seguro-cambia-en-produccion',
+  jwtSecret: process.env.JWT_SECRET,
   jwtExpiresIn: '30d',
   nodeEnv: process.env.NODE_ENV || 'development',
   allowedOrigins: process.env.ALLOWED_ORIGINS 
