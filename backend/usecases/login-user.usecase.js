@@ -28,8 +28,8 @@ class LoginUserUseCase {
     // Validación de entrada
     this._validateInput({ identifier, password });
 
-    // Buscar usuario
-    const user = await this.userService.findByUsernameOrEmail(identifier, identifier);
+    // Buscar usuario (corregido: solo pasa un parámetro)
+    const user = await this.userService.findByUsernameOrEmail(identifier);
     if (!user) {
       throw new Error('Credenciales inválidas');
     }
