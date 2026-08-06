@@ -1,40 +1,53 @@
-```
-# Dependencies
-node_modules/
-
-# Environment variables
+# Environment
 .env
 .env.local
 .env.*
 
-# Logs
-*.log
-
-# Temporary files
-*.tmp
-*.swp
-
-# IDE files
-.vscode/
-.idea/
-
-# Python cache (if Python files detected in project)
+# Dependencies
+node_modules/
+.venv/
+venv/
 __pycache__/
-*.pyc
-*.pyo
-*.pyd
+*.egg-info/
 
-# Build outputs
+# Build artifacts
 dist/
 build/
 target/
+*.pyc
+*.class
+*.o
+*.obj
+*.exe
+*.dll
+*.so
+*.a
+*.out
 
-# Coverage reports
+# Logs and temporary files
+*.log
+*.tmp
+*.swp
+*.swo
+
+# Editor/IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Coverage
 coverage/
 htmlcov/
 .coverage
 
-# OS generated files
-.DS_Store
-Thumbs.db
-```
+# Cache directories
+.mypy_cache/
+.pytest_cache/
+.gradle/
+.julia/
+zig*/
