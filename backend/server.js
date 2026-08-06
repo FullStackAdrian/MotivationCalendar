@@ -15,12 +15,27 @@ const progressRoutes = require('./routes/progress');
 // Crear instancia de Express
 const app = express();
 
-// Middlewares globales
+// Configuración de CORS más segura
+const allowedOrigins = process.env.ALLOWED_ORIGINS 
+  ? process.env.ALLOWED_ORIGINS.split(',') 
+  : ['http://localhost:3000', 'http://127.0.0.1:3000'];
+
 app.use(cors({
-  origin: '*', // En producción restringir a dominios específicos
+  origin: function (origin, callback) {
+    // Permitir requests sin origin (como mobile apps o curl)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.indexOf(origin) !== -1 || origin.includes('github.io')) {
+      callback(null, true);
+    } else {
+      callback(new Error('No permitido por CORS'));
+    }
+  },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
 }));
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -38,7 +53,7 @@ app.use('/api/progress', progressRoutes);
 
 // Ruta de health check
 app.get('/api/health', (req, res) => {
-  res.json({ 
+  res.json({
     status: 'ok',
     timestamp: new Date().toISOString(),
     environment: config.nodeEnv
@@ -57,7 +72,7 @@ app.get('*', (req, res) => {
 // Manejo de errores global
 app.use((err, req, res, next) => {
   console.error('Error no manejado:', err);
-  res.status(500).json({ 
+  res.status(500).json({
     error: config.nodeEnv === 'development' ? err.message : 'Error interno del servidor'
   });
 });

@@ -39,15 +39,15 @@ router.put('/:dayKey', verifyToken, (req, res) => {
     }
 
     // Validar status
-    const validStatuses = ['completed', 'failed', 'partial'];
+    const validStatuses = ['completed', 'partial', 'failed'];
     if (!status || !validStatuses.includes(status)) {
-      return res.status(400).json({ 
-        error: 'Status inválido. Debe ser: completed, failed, o partial' 
+      return res.status(400).json({
+        error: 'Status inválido. Debe ser: completed, failed, o partial'
       });
     }
 
     const progress = updateUserProgress(req.user.userId, dayKey, status);
-    res.json({ 
+    res.json({
       message: 'Progreso actualizado',
       dayKey,
       status,
@@ -71,8 +71,8 @@ router.post('/bulk', verifyToken, (req, res) => {
       return res.status(400).json({ error: 'Se requiere un objeto de actualizaciones' });
     }
 
-    const validStatuses = ['completed', 'failed', 'partial'];
-    let progress = getUserProgress(req.user.userId);
+    const validStatuses = ['completed', 'partial', 'failed'];
+    const userId = req.user.userId;
 
     for (const [dayKey, status] of Object.entries(updates)) {
       // Validar formato de fecha
@@ -86,19 +86,12 @@ router.post('/bulk', verifyToken, (req, res) => {
         return res.status(400).json({ error: `Status inválido para ${dayKey}: ${status}` });
       }
 
-      progress[dayKey] = status;
+      // Actualizar cada día individualmente
+      updateUserProgress(userId, dayKey, status);
     }
 
-    // Guardar todo el progreso actualizado
-    updateUserProgress(req.user.userId, Object.keys(updates)[0], updates[Object.keys(updates)[0]]);
-    
-    // Actualizar manualmente todos los valores
-    const database = require('../models/database');
-    for (const [dayKey, status] of Object.entries(updates)) {
-      database.updateUserProgress(req.user.userId, dayKey, status);
-    }
-
-    res.json({ 
+    const progress = getUserProgress(userId);
+    res.json({
       message: 'Progreso actualizado masivamente',
       updatedCount: Object.keys(updates).length,
       progress
