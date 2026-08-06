@@ -183,6 +183,34 @@ const findUserById = async (userId) => {
 };
 
 /**
+ * Busca un usuario por email
+ * @param {string} email - Email del usuario
+ * @returns {Object|null} Usuario encontrado o null
+ */
+const findUserByEmail = async (email) => {
+  return await User.findOne({
+    where: { email }
+  });
+};
+
+/**
+ * Busca un usuario por cualquier campo especificado
+ * @param {string} field - Nombre del campo (username, email, id)
+ * @param {string} value - Valor a buscar
+ * @returns {Object|null} Usuario encontrado o null
+ */
+const getUserByField = async (field, value) => {
+  const validFields = ['username', 'email', 'id'];
+  if (!validFields.includes(field)) {
+    throw new Error(`Campo inválido: ${field}. Campos válidos: ${validFields.join(', ')}`);
+  }
+  
+  return await User.findOne({
+    where: { [field]: value }
+  });
+};
+
+/**
  * Obtiene el progreso de un usuario como objeto { dayKey: status }
  * @param {string} userId - ID del usuario
  * @returns {Object} Progreso del usuario
@@ -247,6 +275,8 @@ module.exports = {
   initializeDatabase,
   createUser,
   findUserByIdentifier,
+  findUserByEmail,
+  getUserByField,
   findUserById,
   getUserProgress,
   updateUserProgress,
