@@ -29,8 +29,8 @@ class RegisterUserUseCase {
     // Validación de entrada
     this._validateInput({ username, email, password });
 
-    // Verificar si el usuario ya existe
-    const existingUser = await this.userService.findByUsernameOrEmail(username, email);
+    // Verificar si el usuario ya existe (ahora solo pasa un parámetro)
+    const existingUser = await this.userService.findByUsernameOrEmail(username);
     if (existingUser) {
       throw new Error('El usuario o email ya está registrado');
     }

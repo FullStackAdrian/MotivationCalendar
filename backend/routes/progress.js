@@ -12,9 +12,9 @@ const { getUserProgress, updateUserProgress } = require('../models/database');
  * GET /api/progress
  * Obtiene todo el progreso del usuario autenticado
  */
-router.get('/', verifyToken, (req, res) => {
+router.get('/', verifyToken, async (req, res) => {
   try {
-    const progress = getUserProgress(req.user.userId);
+    const progress = await getUserProgress(req.user.userId);
     res.json({ progress });
   } catch (error) {
     console.error('Error al obtener progreso:', error);
@@ -27,7 +27,7 @@ router.get('/', verifyToken, (req, res) => {
  * Actualiza el estado de un día específico
  * dayKey formato: YYYY-MM-DD
  */
-router.put('/:dayKey', verifyToken, (req, res) => {
+router.put('/:dayKey', verifyToken, async (req, res) => {
   try {
     const { dayKey } = req.params;
     const { status } = req.body;
@@ -46,7 +46,7 @@ router.put('/:dayKey', verifyToken, (req, res) => {
       });
     }
 
-    const progress = updateUserProgress(req.user.userId, dayKey, status);
+    const progress = await updateUserProgress(req.user.userId, dayKey, status);
     res.json({
       message: 'Progreso actualizado',
       dayKey,
@@ -63,7 +63,7 @@ router.put('/:dayKey', verifyToken, (req, res) => {
  * POST /api/progress/bulk
  * Actualiza múltiples días a la vez
  */
-router.post('/bulk', verifyToken, (req, res) => {
+router.post('/bulk', verifyToken, async (req, res) => {
   try {
     const { updates } = req.body;
 
@@ -87,10 +87,10 @@ router.post('/bulk', verifyToken, (req, res) => {
       }
 
       // Actualizar cada día individualmente
-      updateUserProgress(userId, dayKey, status);
+      await updateUserProgress(userId, dayKey, status);
     }
 
-    const progress = getUserProgress(userId);
+    const progress = await getUserProgress(userId);
     res.json({
       message: 'Progreso actualizado masivamente',
       updatedCount: Object.keys(updates).length,
