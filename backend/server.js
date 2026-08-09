@@ -1,45 +1,38 @@
-/**
- * Servidor principal de la API
- * Configura Express, middlewares y rutas
- */
+require('dotenv').config();
 
+/**
+ * Servidor principal de la API.
+ * Configura Express, middlewares y rutas.
+ */
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const config = require('./config/config');
 
-// Importar rutas
 const authRoutes = require('./routes/auth');
 const progressRoutes = require('./routes/progress');
 
-// Crear instancia de Express
 const app = express();
 
-// Configuración de CORS más segura
-const allowedOrigins = process.env.ALLOWED_ORIGINS 
-  ? process.env.ALLOWED_ORIGINS.split(',') 
-  : ['http://localhost:3000', 'http://127.0.0.1:3000'];
+const allowedOrigins = config.allowedOrigins;
 
 app.use(cors({
-  origin: function (origin, callback) {
-    // Permitir requests sin origin (como mobile apps o curl)
-    if (!origin) return callback(null, true);
-    
-    if (allowedOrigins.indexOf(origin) !== -1 || origin.includes('github.io')) {
-      callback(null, true);
-    } else {
-      callback(new Error('No permitido por CORS'));
+  origin(origin, callback) {
+    // Requests without an Origin (curl, server-to-server, health checks) are allowed.
+    if (!origin || allowedOrigins.includes(origin)) {
+      return callback(null, true);
     }
+
+    return callback(new Error('No permitido por CORS'));
   },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true
 }));
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '100kb' }));
+app.use(express.urlencoded({ extended: true, limit: '100kb' }));
 
-// Log de requests (desarrollo)
 if (config.nodeEnv === 'development') {
   app.use((req, res, next) => {
     console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
@@ -47,11 +40,9 @@ if (config.nodeEnv === 'development') {
   });
 }
 
-// Rutas de la API
 app.use('/api/auth', authRoutes);
 app.use('/api/progress', progressRoutes);
 
-// Ruta de health check
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'ok',
@@ -60,33 +51,34 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Servir frontend estático
 const frontendPath = path.join(__dirname, '..', 'frontend');
 app.use(express.static(frontendPath));
 
-// Wildcard route para SPA (debe ir después de las rutas de API)
-app.get('*', (req, res) => {
+// Express 5 requires a named wildcard parameter.
+app.get('/{*splat}', (req, res) => {
   res.sendFile(path.join(frontendPath, 'index.html'));
 });
 
-// Manejo de errores global
 app.use((err, req, res, next) => {
   console.error('Error no manejado:', err);
-  res.status(500).json({
+  res.status(err.message === 'No permitido por CORS' ? 403 : 500).json({
     error: config.nodeEnv === 'development' ? err.message : 'Error interno del servidor'
   });
 });
 
-// Iniciar servidor
-const PORT = config.port;
-app.listen(PORT, () => {
-  console.log(`
-╔════════════════════════════════════════════╗
-║  🚀 Servidor corriendo en puerto ${PORT}      ║
-║  📍 http://localhost:${PORT}                 ║
-║  🔧 Environment: ${config.nodeEnv.padEnd(21)}║
-╚════════════════════════════════════════════╝
-  `);
-});
+if (require.main === module) {
+  const PORT = config.port;
+  const server = app.listen(PORT, () => {
+    console.log(`Servidor corriendo en http://localhost:${PORT}`);
+  });
+
+  const shutdown = (signal) => {
+    console.log(`Recibido ${signal}. Cerrando servidor...`);
+    server.close(() => process.exit(0));
+  };
+
+  process.once('SIGTERM', () => shutdown('SIGTERM'));
+  process.once('SIGINT', () => shutdown('SIGINT'));
+}
 
 module.exports = app;
