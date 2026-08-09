@@ -1,70 +1,38 @@
 /**
- * Servicio de usuarios
- * Maneja la lógica de negocio relacionada con usuarios: creación, búsqueda, autenticación
+ * Servicio de usuarios.
+ * Encapsula hashing, búsqueda y autenticación de usuarios.
  */
-
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const config = require('../config/config');
-const { 
-  createUser, 
-  findUserByIdentifier, 
-  findUserByEmail,
-  getUserByField 
+const {
+  createUser,
+  findUserByIdentifier,
+  findUserByEmail
 } = require('../models/database');
 
 class UserService {
-  /**
-   * Busca un usuario por username o email
-   * @param {string} usernameOrEmail - Username o email a buscar
-   * @returns {Promise<Object|null>} Usuario encontrado o null
-   */
-  async findByUsernameOrEmail(usernameOrEmail, email) {
-    // Intentar buscar por username primero
-    let user = await this._findUser(usernameOrEmail);
-    
-    // Si no se encuentra y el parámetro parece un email, buscar por email
-    if (!user && email) {
-      user = await this._findUserByEmail(email);
+  async findByUsernameOrEmail(identifier, email) {
+    const user = await findUserByIdentifier(identifier);
+
+    if (user) {
+      return user;
     }
-    
-    return user;
+
+    // Backwards-compatible optional second lookup, useful for registration.
+    return email ? findUserByEmail(email) : null;
   }
 
-  /**
-   * Crea un nuevo usuario
-   * @param {Object} userData - Datos del usuario
-   * @param {string} userData.username - Nombre de usuario
-   * @param {string} userData.email - Email
-   * @param {string} userData.password - Contraseña en texto plano
-   * @returns {Promise<Object>} Usuario creado (sin password)
-   */
   async createUser({ username, email, password }) {
-    // Hashear contraseña
     const hashedPassword = await bcrypt.hash(password, 10);
-    
-    // Crear usuario en la base de datos
-    const user = createUser(username, email, hashedPassword);
-    
-    // Retornar usuario sin password
+    const user = await createUser(username, email, hashedPassword);
     return this._sanitizeUser(user);
   }
 
-  /**
-   * Verifica una contraseña contra un hash
-   * @param {string} password - Contraseña en texto plano
-   * @param {string} hashedPassword - Hash de la contraseña
-   * @returns {Promise<boolean>} True si coincide
-   */
   async verifyPassword(password, hashedPassword) {
-    return await bcrypt.compare(password, hashedPassword);
+    return bcrypt.compare(password, hashedPassword);
   }
 
-  /**
-   * Genera un token JWT para un usuario
-   * @param {Object} user - Usuario
-   * @returns {string} Token JWT
-   */
   generateToken(user) {
     return jwt.sign(
       { userId: user.id, username: user.username },
@@ -73,34 +41,19 @@ class UserService {
     );
   }
 
-  /**
-   * Busca un usuario en la base de datos
-   * @param {string} identifier - Username o email
-   * @returns {Promise<Object|null>} Usuario encontrado o null
-   * @private
-   */
   async _findUser(identifier) {
     return findUserByIdentifier(identifier);
   }
 
-  /**
-   * Busca un usuario por email
-   * @param {string} email - Email del usuario
-   * @returns {Promise<Object|null>} Usuario encontrado o null
-   * @private
-   */
   async _findUserByEmail(email) {
     return findUserByEmail(email);
   }
 
-  /**
-   * Elimina información sensible del usuario
-   * @param {Object} user - Usuario completo
-   * @returns {Object} Usuario sin información sensible
-   * @private
-   */
   _sanitizeUser(user) {
-    const { password, ...sanitizedUser } = user;
+    if (!user) return null;
+
+    const plainUser = typeof user.toJSON === 'function' ? user.toJSON() : user;
+    const { password, ...sanitizedUser } = plainUser;
     return sanitizedUser;
   }
 }
