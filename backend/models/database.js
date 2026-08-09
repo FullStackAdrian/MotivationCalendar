@@ -1,7 +1,7 @@
 /**
  * Persistencia PostgreSQL mediante Sequelize.
  */
-const { Sequelize, DataTypes } = require('sequelize');
+const { Sequelize, DataTypes, Op } = require('sequelize');
 const config = require('../config/config');
 
 const databaseUrl = process.env.DATABASE_URL ||
@@ -15,9 +15,9 @@ const sequelize = new Sequelize(databaseUrl, {
 
 const User = sequelize.define('User', {
   id: {
-    type: DataTypes.UUID,
-    defaultValue: DataTypes.UUIDV4,
-    primaryKey: true
+    type: DataTypes.STRING,
+    primaryKey: true,
+    defaultValue: () => `user_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`
   },
   username: {
     type: DataTypes.STRING(50),
@@ -31,27 +31,14 @@ const User = sequelize.define('User', {
     unique: true,
     validate: { isEmail: true }
   },
-  password: {
-    type: DataTypes.STRING,
-    allowNull: false
-  },
-  createdAt: {
-    type: DataTypes.DATE,
-    defaultValue: DataTypes.NOW
-  }
-}, {
-  tableName: 'users',
-  timestamps: false
-});
+  password: { type: DataTypes.STRING, allowNull: false },
+  createdAt: { type: DataTypes.DATE, defaultValue: DataTypes.NOW }
+}, { tableName: 'users', timestamps: false });
 
 const Progress = sequelize.define('Progress', {
-  id: {
-    type: DataTypes.INTEGER,
-    primaryKey: true,
-    autoIncrement: true
-  },
+  id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
   userId: {
-    type: DataTypes.UUID,
+    type: DataTypes.STRING,
     allowNull: false,
     references: { model: User, key: 'id' },
     onDelete: 'CASCADE'
@@ -62,13 +49,11 @@ const Progress = sequelize.define('Progress', {
     comment: 'Clave del día en formato YYYY-MM-DD'
   },
   status: {
-    type: DataTypes.ENUM('completed', 'partial', 'failed'),
-    allowNull: false
+    type: DataTypes.STRING(20),
+    allowNull: false,
+    validate: { isIn: [['completed', 'partial', 'failed']] }
   },
-  updatedAt: {
-    type: DataTypes.DATE,
-    defaultValue: DataTypes.NOW
-  }
+  updatedAt: { type: DataTypes.DATE, defaultValue: DataTypes.NOW }
 }, {
   tableName: 'progress',
   timestamps: false,
@@ -98,7 +83,7 @@ const createUser = async (username, email, hashedPassword) => {
 
 const findUserByIdentifier = async (identifier) => User.findOne({
   where: {
-    [require('sequelize').Op.or]: [
+    [Op.or]: [
       { username: identifier },
       { email: identifier.toLowerCase() }
     ]
