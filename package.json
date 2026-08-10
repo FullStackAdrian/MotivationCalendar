@@ -7,6 +7,10 @@
     "start": "node backend/server.js",
     "dev": "node backend/server.js",
     "test": "node --test",
+    "test:integration": "node --test test/integration/**/*.test.js",
+    "test:coverage": "node --test --experimental-test-coverage test/integration/**/*.test.js > coverage.txt 2>&1 && mkdir -p coverage && cp coverage.txt coverage/test-coverage.txt",
+    "lint": "node scripts/check-js-syntax.js",
+    "test:frontend": "node scripts/frontend-smoke.js",
     "test:watch": "node --test --watch",
     "install:all": "npm install"
   },
