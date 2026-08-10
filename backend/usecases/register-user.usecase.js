@@ -36,20 +36,31 @@ class RegisterUserUseCase {
   }
 
   _validateInput({ username, email, password }) {
-    if (!username || !email || !password) {
+    if (typeof username !== 'string' || typeof email !== 'string' || typeof password !== 'string') {
       throw new Error('Todos los campos son requeridos');
     }
 
-    if (typeof username !== 'string' || username.trim().length < 3 || username.trim().length > 50) {
+    const normalizedUsername = username.trim();
+    const normalizedEmail = email.trim();
+
+    if (!normalizedUsername || !normalizedEmail || !password) {
+      throw new Error('Todos los campos son requeridos');
+    }
+
+    if (normalizedUsername.length < 3 || normalizedUsername.length > 50) {
       throw new Error('El nombre de usuario debe tener entre 3 y 50 caracteres');
     }
 
-    if (typeof email !== 'string' || !this._isValidEmail(email.trim())) {
+    if (!this._isValidEmail(normalizedEmail)) {
       throw new Error('El email es inválido');
     }
 
-    if (typeof password !== 'string' || password.length < 6) {
-      throw new Error('La contraseña debe tener al menos 6 caracteres');
+    if (normalizedEmail.length > 255) {
+      throw new Error('El email no puede superar 255 caracteres');
+    }
+
+    if (password.length < 6 || password.length > 72) {
+      throw new Error('La contraseña debe tener entre 6 y 72 caracteres');
     }
   }
 
