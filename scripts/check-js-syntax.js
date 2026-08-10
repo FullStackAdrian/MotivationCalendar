@@ -2,7 +2,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 
-const roots = ['backend', 'test', 'scripts'];
+const roots = ['backend', 'frontend', 'test', 'scripts'];
 const files = [];
 
 function walk(directory) {
