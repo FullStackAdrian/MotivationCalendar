@@ -4,13 +4,17 @@
  */
 const getBaseURL = () => {
   const configuredURL = window.APP_CONFIG?.apiBaseUrl;
-  if (configuredURL) {
-    return configuredURL.replace(/\/$/, '');
-  }
-
-  // Same-origin is useful when the frontend is served by the backend.
+  if (configuredURL) return configuredURL.replace(/\/$/, '');
   return '';
 };
+
+class APIError extends Error {
+  constructor(message, status) {
+    super(message);
+    this.name = 'APIError';
+    this.status = status;
+  }
+}
 
 class APIClient {
   constructor(baseURL = getBaseURL()) {
@@ -20,18 +24,13 @@ class APIClient {
 
   setToken(token) {
     this.token = token;
-    if (token) {
-      localStorage.setItem('authToken', token);
-    } else {
-      localStorage.removeItem('authToken');
-    }
+    if (token) localStorage.setItem('authToken', token);
+    else localStorage.removeItem('authToken');
   }
 
   getAuthHeaders() {
     const headers = { 'Content-Type': 'application/json' };
-    if (this.token) {
-      headers.Authorization = `Bearer ${this.token}`;
-    }
+    if (this.token) headers.Authorization = `Bearer ${this.token}`;
     return headers;
   }
 
@@ -49,7 +48,7 @@ class APIClient {
       : null;
 
     if (!response.ok) {
-      throw new Error(data?.error || `Error HTTP ${response.status}`);
+      throw new APIError(data?.error || `Error HTTP ${response.status}`, response.status);
     }
 
     return data;
@@ -127,4 +126,5 @@ class APIClient {
   }
 }
 
+window.APIError = APIError;
 window.apiClient = new APIClient();
