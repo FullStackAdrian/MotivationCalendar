@@ -11,6 +11,7 @@ class MainPresenter {
     this.clicks = null;
     this.isServerAvailable = false;
     this.onLogoutCallback = null;
+    this.storageKey = null;
   }
 
   initialize() {
@@ -20,6 +21,7 @@ class MainPresenter {
   }
 
   async show(user) {
+    this.storageKey = user?.id ? `tracker2026:${user.id}` : null;
     this.mainView.show(user);
     this.initialize();
 
@@ -77,7 +79,6 @@ class MainPresenter {
 
   updateStats() {
     const todayDoy = this.calculateTodayDoy();
-
     let d = 0, p = 0, m = 0;
     for (let i = 1; i <= this.mainView.TOTAL; i++) {
       if (this.clicks[i] === 1) d++;
@@ -103,26 +104,33 @@ class MainPresenter {
   }
 
   saveToLocal() {
+    if (!this.storageKey) return;
     try {
-      localStorage.setItem('tracker2026', JSON.stringify(this.clicks));
+      localStorage.setItem(this.storageKey, JSON.stringify(this.clicks));
     } catch (e) {
       console.error('Error al guardar en localStorage:', e);
     }
   }
 
   loadFromLocal() {
+    const empty = () => new Array(this.mainView.TOTAL + 1).fill(0);
+    if (!this.storageKey) {
+      this.clicks = empty();
+      return;
+    }
+
     try {
-      const saved = localStorage.getItem('tracker2026');
+      const saved = localStorage.getItem(this.storageKey);
       if (saved) {
         this.clicks = JSON.parse(saved);
         if (!Array.isArray(this.clicks) || this.clicks.length !== this.mainView.TOTAL + 1) {
-          this.clicks = new Array(this.mainView.TOTAL + 1).fill(0);
+          this.clicks = empty();
         }
       } else {
-        this.clicks = new Array(this.mainView.TOTAL + 1).fill(0);
+        this.clicks = empty();
       }
     } catch (e) {
-      this.clicks = new Array(this.mainView.TOTAL + 1).fill(0);
+      this.clicks = empty();
     }
   }
 
