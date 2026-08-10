@@ -45,7 +45,17 @@ test('AuthController normalizes non-object request bodies', async () => {
 });
 
 test('AuthController maps domain errors to HTTP responses', async () => {
-  const errors = [['Credenciales inválidas', 401], ['El usuario o email ya está registrado', 409], ['Todos los campos son requeridos', 400], ['El email es inválido', 400], ['La contraseña debe tener entre 6 y 72 caracteres', 400], ['El nombre de usuario debe tener entre 3 y 50 caracteres', 400], ['El email no puede superar 255 caracteres', 400], ['El identificador es inválido', 400], ['La contraseña es requerida', 400], ['unexpected database error', 500]];
+  const errors = [
+    ['Credenciales inválidas', 401],
+    ['El usuario o email ya está registrado', 409],
+    ['Todos los campos son requeridos', 400],
+    ['El email es inválido', 400],
+    ['La contraseña debe tener entre 6 y 72 caracteres', 400],
+    ['El nombre de usuario debe tener entre 3 y 50 caracteres', 400],
+    ['El email no puede superar 255 caracteres', 400],
+    ['El identificador es inválido', 400],
+    ['La contraseña es requerida', 400]
+  ];
   for (const [message, expectedStatus] of errors) {
     const controller = new AuthController({ async execute() { throw new Error(message); } }, { async execute() { throw new Error(message); } });
     const registerRes = responseDouble();
