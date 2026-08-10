@@ -7,7 +7,8 @@ const { verifyToken } = require('../middleware/auth');
 const {
   getUserProgress,
   updateUserProgress,
-  updateUserProgressBulk
+  updateUserProgressBulk,
+  deleteUserProgress
 } = require('../models/database');
 
 const VALID_STATUSES = new Set(['completed', 'partial', 'failed']);
@@ -87,6 +88,16 @@ router.post('/bulk', verifyToken, async (req, res) => {
     });
   } catch (error) {
     console.error('Error al actualizar progreso masivo:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+router.delete('/', verifyToken, async (req, res) => {
+  try {
+    const deletedCount = await deleteUserProgress(req.user.userId);
+    res.json({ message: 'Progreso eliminado', deletedCount });
+  } catch (error) {
+    console.error('Error al eliminar progreso:', error);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
