@@ -66,7 +66,10 @@ Progress.belongsTo(User, { foreignKey: 'userId' });
 const initializeDatabase = async () => {
   await sequelize.authenticate();
   console.log('Conexión a PostgreSQL establecida correctamente');
-  await sequelize.sync({ alter: config.nodeEnv === 'development' });
+
+  // `sync()` only creates missing tables and is safe for startup in all environments.
+  // Schema-altering migrations can be introduced later without coupling startup to them.
+  await sequelize.sync();
 };
 
 const createUser = async (username, email, hashedPassword) => {
@@ -75,7 +78,7 @@ const createUser = async (username, email, hashedPassword) => {
     return user.toJSON();
   } catch (error) {
     if (error.name === 'SequelizeUniqueConstraintError') {
-      throw new Error('El username o email ya existe');
+      throw new Error('El usuario o email ya está registrado');
     }
     throw error;
   }
