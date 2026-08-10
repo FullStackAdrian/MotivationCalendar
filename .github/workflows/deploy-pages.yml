@@ -43,6 +43,14 @@ jobs:
             --header "X-GitHub-Api-Version: 2026-03-10" \
             --data '{"build_type":"workflow","source":{"branch":"master","path":"/"}}'
 
+          build_type=$(curl --fail-with-body --silent \
+            --url "https://api.github.com/repos/${{ github.repository }}/pages" \
+            --header "Accept: application/vnd.github+json" \
+            --header "Authorization: Bearer ${GH_TOKEN}" \
+            --header "X-GitHub-Api-Version: 2026-03-10" | python -c 'import json,sys; print(json.load(sys.stdin).get("build_type", ""))')
+
+          test "$build_type" = "workflow"
+
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
@@ -50,7 +58,7 @@ jobs:
         run: |
           test -f frontend/index.html
           test -s frontend/index.html
-          echo "GitHub Pages entrypoint: frontend/index.html"
+          grep -q '<title>2026 — Tracker</title>' frontend/index.html
 
       - name: Upload frontend artifact
         uses: actions/upload-pages-artifact@v4
