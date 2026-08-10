@@ -61,11 +61,12 @@ test('health and frontend smoke endpoints work', async () => {
 });
 
 test('authentication rejects malformed JSON payloads with 400', async () => {
-  const nullBody = await request('/api/auth/register', {
+  const malformed = await request('/api/auth/register', {
     method: 'POST',
-    body: 'null'
+    body: '{"username":'
   });
-  assert.equal(nullBody.response.status, 400);
+  assert.equal(malformed.response.status, 400);
+  assert.equal(malformed.body.error, 'JSON inválido');
 
   const objectBody = await request('/api/auth/register', json('POST', {
     username: { invalid: true }, email: 'alice@example.com', password: 'password123'
