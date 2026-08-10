@@ -13,23 +13,15 @@ const { verifyToken } = require('../backend/middleware/auth');
 const { getUserByField } = require('../backend/models/database');
 
 function responseDouble() {
-  const response = {
-    statusCode: 200,
-    body: undefined,
-    status(code) { this.statusCode = code; return this; },
-    json(body) { this.body = body; return this; }
-  };
+  const response = { statusCode: 200, body: undefined, status(code) { this.statusCode = code; return this; }, json(body) { this.body = body; return this; } };
   return response;
 }
 
 test('AuthPresenter formats registration and login responses without passwords', () => {
   const presenter = new AuthPresenter();
   const user = { id: 'u1', username: 'alice', email: 'alice@example.com', password: 'secret', createdAt: '2026-01-01' };
-  assert.deepEqual(presenter.presentRegistration(user, 'token'), {
-    message: 'Usuario registrado exitosamente', token: 'token',
-    user: { id: 'u1', username: 'alice', email: 'alice@example.com', createdAt: '2026-01-01' }
-  });
-  assert.deepEqual(presenter.presentLogin({ ...user, createdAt: undefined }, 'token2').user.createdAt, null);
+  assert.deepEqual(presenter.presentRegistration(user, 'token'), { message: 'Usuario registrado exitosamente', token: 'token', user: { id: 'u1', username: 'alice', email: 'alice@example.com', createdAt: '2026-01-01' } });
+  assert.equal(presenter.presentLogin({ ...user, createdAt: undefined }, 'token2').user.createdAt, null);
 });
 
 test('AuthController returns success responses', async () => {
@@ -46,37 +38,32 @@ test('AuthController returns success responses', async () => {
 
 test('AuthController normalizes non-object request bodies', async () => {
   const calls = [];
-  const controller = new AuthController(
-    { async execute(input) { calls.push(input); return {}; } },
-    { async execute(input) { calls.push(input); return {}; } }
-  );
+  const controller = new AuthController({ async execute(input) { calls.push(input); return {}; } }, { async execute(input) { calls.push(input); return {}; } });
   await controller.register({ body: null }, responseDouble());
   await controller.login({ body: [] }, responseDouble());
-  assert.deepEqual(calls, [
-    { username: undefined, email: undefined, password: undefined },
-    { identifier: undefined, password: undefined }
-  ]);
+  assert.deepEqual(calls, [{ username: undefined, email: undefined, password: undefined }, { identifier: undefined, password: undefined }]);
 });
 
 test('AuthController maps domain errors to HTTP responses', async () => {
-  const errors = [
-    ['Credenciales inválidas', 401],
-    ['El usuario o email ya está registrado', 409],
-    ['Todos los campos son requeridos', 400],
-    ['El email es inválido', 400],
-    ['La contraseña debe tener entre 6 y 72 caracteres', 400],
-    ['unexpected database error', 500]
-  ];
+  const errors = [['Credenciales inválidas', 401], ['El usuario o email ya está registrado', 409], ['Todos los campos son requeridos', 400], ['El email es inválido', 400], ['La contraseña debe tener entre 6 y 72 caracteres', 400], ['El nombre de usuario debe tener entre 3 y 50 caracteres', 400], ['El email no puede superar 255 caracteres', 400], ['El identificador es inválido', 400], ['La contraseña es requerida', 400], ['unexpected database error', 500]];
   for (const [message, expectedStatus] of errors) {
-    const controller = new AuthController(
-      { async execute() { throw new Error(message); } },
-      { async execute() { throw new Error(message); } }
-    );
-    const res = responseDouble();
-    await controller.register({ body: {} }, res);
-    assert.equal(res.statusCode, expectedStatus, message);
-    assert.equal(typeof res.body.error, 'string');
+    const controller = new AuthController({ async execute() { throw new Error(message); } }, { async execute() { throw new Error(message); } });
+    const registerRes = responseDouble();
+    await controller.register({ body: {} }, registerRes);
+    assert.equal(registerRes.statusCode, expectedStatus, message);
+    assert.equal(typeof registerRes.body.error, 'string');
+    const loginRes = responseDouble();
+    await controller.login({ body: {} }, loginRes);
+    assert.equal(loginRes.statusCode, expectedStatus, message);
   }
+});
+
+test('UserService finds by identifier and optional email fallback', async () => {
+  const service = new UserService();
+  const original = require('../backend/models/database');
+  const first = await service.findByUsernameOrEmail('missing', 'missing@example.com');
+  assert.equal(first, null);
+  assert.equal(typeof original.findUserByIdentifier, 'function');
 });
 
 test('UserService verifies passwords, creates tokens and sanitizes users', async () => {
@@ -85,7 +72,7 @@ test('UserService verifies passwords, creates tokens and sanitizes users', async
   assert.equal(await service.verifyPassword('secret123', hash), true);
   assert.equal(await service.verifyPassword('wrong', hash), false);
   const token = service.generateToken({ id: 'u1', username: 'alice' });
-  assert.deepEqual(jwt.verify(token, 'test-secret').userId, 'u1');
+  assert.equal(jwt.verify(token, 'test-secret').userId, 'u1');
   assert.deepEqual(service._sanitizeUser({ id: 'u1', password: 'secret', username: 'alice' }), { id: 'u1', username: 'alice' });
   assert.deepEqual(service._sanitizeUser({ toJSON: () => ({ id: 'u2', password: 'secret', username: 'bob' }) }), { id: 'u2', username: 'bob' });
   assert.equal(service._sanitizeUser(null), null);
@@ -106,11 +93,9 @@ test('JWT middleware accepts valid tokens and rejects invalid and expired tokens
   verifyToken(req, responseDouble(), () => { nextCalled = true; });
   assert.equal(nextCalled, true);
   assert.equal(req.user.userId, 'u1');
-
   const invalidRes = responseDouble();
   verifyToken({ headers: { authorization: 'Bearer invalid' } }, invalidRes, () => {});
   assert.equal(invalidRes.statusCode, 401); assert.equal(invalidRes.body.error, 'Token inválido');
-
   const expired = jwt.sign({ userId: 'u1' }, 'test-secret', { expiresIn: -1 });
   const expiredRes = responseDouble();
   verifyToken({ headers: { authorization: `Bearer ${expired}` } }, expiredRes, () => {});
