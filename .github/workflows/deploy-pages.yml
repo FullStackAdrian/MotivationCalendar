@@ -1,0 +1,81 @@
+name: Deploy GitHub Pages
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+env:
+  NODE_VERSION: '20'
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy-frontend:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout tested commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Configure GitHub Pages for Actions deployments
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          curl --fail-with-body --request PUT \
+            --url "https://api.github.com/repos/${{ github.repository }}/pages" \
+            --header "Accept: application/vnd.github+json" \
+            --header "Authorization: Bearer ${GH_TOKEN}" \
+            --header "X-GitHub-Api-Version: 2026-03-10" \
+            --data '{"build_type":"workflow","source":{"branch":"master","path":"/"}}'
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Validate frontend entrypoint
+        run: |
+          test -f frontend/index.html
+          test -s frontend/index.html
+          echo "GitHub Pages entrypoint: frontend/index.html"
+
+      - name: Upload frontend artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: ./frontend
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+  backend-artifact:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout tested commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Build backend artifact
+        run: tar -czf backend-deploy.tar.gz backend package.json package-lock.json
+
+      - name: Upload backend artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-deploy
+          path: backend-deploy.tar.gz
+          retention-days: 5
