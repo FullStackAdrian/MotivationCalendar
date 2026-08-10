@@ -52,6 +52,7 @@ class AuthController {
     }
 
     if (
+      error.message.includes('requerido') ||
       error.message.includes('requeridos') ||
       error.message.includes('inválido') ||
       error.message.includes('debe tener') ||
