@@ -14,13 +14,18 @@ const parseAllowedOrigins = (value) => {
     .filter(Boolean);
 };
 
-if (!process.env.JWT_SECRET) {
+const jwtSecret = process.env.JWT_SECRET;
+if (!jwtSecret) {
   throw new Error('JWT_SECRET no está configurado');
+}
+
+if (process.env.NODE_ENV === 'production' && jwtSecret.length < 32) {
+  throw new Error('JWT_SECRET debe tener al menos 32 caracteres en producción');
 }
 
 const config = {
   port: Number(process.env.PORT) || 3000,
-  jwtSecret: process.env.JWT_SECRET,
+  jwtSecret,
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '30d',
   nodeEnv: process.env.NODE_ENV || 'development',
   allowedOrigins: parseAllowedOrigins(process.env.ALLOWED_ORIGINS)
