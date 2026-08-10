@@ -16,7 +16,10 @@ class AuthController {
 
   async register(req, res) {
     try {
-      const { username, email, password } = req.body;
+      const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body)
+        ? req.body
+        : {};
+      const { username, email, password } = body;
       const result = await this.registerUseCase.execute({ username, email, password });
       res.status(201).json(result);
     } catch (error) {
@@ -26,7 +29,10 @@ class AuthController {
 
   async login(req, res) {
     try {
-      const { identifier, password } = req.body;
+      const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body)
+        ? req.body
+        : {};
+      const { identifier, password } = body;
       const result = await this.loginUseCase.execute({ identifier, password });
       res.json(result);
     } catch (error) {
@@ -48,7 +54,8 @@ class AuthController {
     if (
       error.message.includes('requeridos') ||
       error.message.includes('inválido') ||
-      error.message.includes('debe tener')
+      error.message.includes('debe tener') ||
+      error.message.includes('no puede superar')
     ) {
       return res.status(400).json({ error: error.message });
     }

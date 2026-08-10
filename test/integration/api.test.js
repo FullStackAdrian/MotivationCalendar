@@ -49,6 +49,7 @@ test('health and frontend smoke endpoints work', async () => {
   const health = await request('/api/health');
   assert.equal(health.response.status, 200);
   assert.equal(health.body.status, 'ok');
+  assert.equal(health.body.database, 'ok');
 
   const index = await request('/');
   assert.equal(index.response.status, 200);
@@ -57,6 +58,25 @@ test('health and frontend smoke endpoints work', async () => {
   const asset = await request('/assets/js/api-client.js');
   assert.equal(asset.response.status, 200);
   assert.match(asset.body, /APP_CONFIG/);
+});
+
+test('authentication rejects malformed JSON payloads with 400', async () => {
+  const nullBody = await request('/api/auth/register', {
+    method: 'POST',
+    body: 'null'
+  });
+  assert.equal(nullBody.response.status, 400);
+
+  const objectBody = await request('/api/auth/register', json('POST', {
+    username: { invalid: true }, email: 'alice@example.com', password: 'password123'
+  }));
+  assert.equal(objectBody.response.status, 400);
+
+  const invalidLogin = await request('/api/auth/login', {
+    method: 'POST',
+    body: 'null'
+  });
+  assert.equal(invalidLogin.response.status, 400);
 });
 
 test('register, duplicate conflicts and login flow', async () => {
@@ -111,18 +131,24 @@ test('progress is authenticated, isolated and persistent', async () => {
   assert.equal(created.response.status, 200);
   assert.equal(created.body.progress['2026-08-10'], 'completed');
 
+  const invalidDate = await request('/api/progress/2026-02-30', json('PUT', { status: 'completed' }, aliceToken));
+  assert.equal(invalidDate.response.status, 400);
+
   const bulk = await request('/api/progress/bulk', json('POST', {
     updates: { '2026-08-11': 'partial', '2026-08-12': 'failed' }
   }, aliceToken));
   assert.equal(bulk.response.status, 200);
   assert.equal(bulk.body.updatedCount, 2);
 
+  const oversizedBulk = await request('/api/progress/bulk', json('POST', {
+    updates: Object.fromEntries(Array.from({ length: 501 }, (_, index) => [`2026-01-${String(index + 1).padStart(2, '0')}`, 'completed']))
+  }, aliceToken));
+  assert.equal(oversizedBulk.response.status, 400);
+
   const bobProgress = await request('/api/progress', { headers: { Authorization: `Bearer ${bobToken}` } });
   assert.equal(bobProgress.response.status, 200);
   assert.deepEqual(bobProgress.body.progress, {});
 
-  // Verify persistence through a separate PostgreSQL connection/pool.
-  // This proves the data is actually in PostgreSQL, rather than only in Sequelize's current connection.
   const client = new Client({ connectionString: process.env.DATABASE_URL });
   await client.connect();
   try {
