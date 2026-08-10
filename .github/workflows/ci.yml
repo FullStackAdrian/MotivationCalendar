@@ -11,10 +11,29 @@ permissions:
 
 env:
   NODE_VERSION: '20'
+  NODE_ENV: test
+  DATABASE_URL: postgres://postgres:postgres@localhost:5432/motivation_calendar_test
+  JWT_SECRET: test-secret
+  ALLOWED_ORIGINS: http://localhost:3000
 
 jobs:
   test:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: motivation_calendar_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres -d motivation_calendar_test"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -28,5 +47,33 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run tests
+      - name: Lint and syntax checks
+        run: npm run lint
+
+      - name: Repository security configuration checks
+        run: node scripts/security-check.js
+
+      - name: Unit tests
         run: npm test
+
+      - name: Integration tests
+        run: npm run test:integration
+
+      - name: Frontend smoke tests
+        run: npm run test:frontend
+
+      - name: Coverage
+        run: npm run test:coverage
+
+      - name: Upload coverage artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-coverage
+          path: |
+            coverage/
+            coverage.txt
+          if-no-files-found: warn
+
+      - name: Security audit
+        run: npm audit --audit-level=high

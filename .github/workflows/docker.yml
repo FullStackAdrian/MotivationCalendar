@@ -1,0 +1,46 @@
+name: Docker
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+
+permissions:
+  contents: read
+
+jobs:
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build backend image
+        run: docker build -f backend/Dockerfile -t motivation-calendar-backend:ci .
+
+      - name: Inspect backend image
+        run: docker image inspect motivation-calendar-backend:ci
+
+      - name: Start compose stack
+        run: docker compose -f docker-compose.ci.yml up -d --build
+
+      - name: Wait for backend health
+        run: |
+          for attempt in {1..30}; do
+            if curl --fail --silent http://127.0.0.1:3000/api/health; then
+              exit 0
+            fi
+            sleep 2
+          done
+          docker compose -f docker-compose.ci.yml logs
+          exit 1
+
+      - name: Smoke test frontend through backend
+        run: |
+          curl --fail --silent http://127.0.0.1:3000/ | grep -q '2026 — Tracker'
+          curl --fail --silent http://127.0.0.1:3000/assets/js/api-client.js | grep -q 'APP_CONFIG'
+
+      - name: Tear down
+        if: always()
+        run: docker compose -f docker-compose.ci.yml down -v

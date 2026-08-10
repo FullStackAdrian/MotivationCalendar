@@ -1,9 +1,10 @@
 name: Deploy
 
 on:
-  push:
-    branches:
-      - master
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [master]
   workflow_dispatch:
 
 permissions:
@@ -20,25 +21,16 @@ concurrency:
 
 jobs:
   deploy-frontend:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout tested commit
         uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
         with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Verify application
-        run: npm test
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
@@ -53,23 +45,13 @@ jobs:
         uses: actions/deploy-pages@v4
 
   backend-artifact:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
-    needs: deploy-frontend
     steps:
-      - name: Checkout
+      - name: Checkout tested commit
         uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
         with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Verify application
-        run: npm test
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - name: Build backend artifact
         run: tar -czf backend-deploy.tar.gz backend package.json package-lock.json
