@@ -85,8 +85,6 @@ test('register, duplicate conflicts and login flow', async () => {
     identifier: 'alice', password: 'wrong-password'
   }));
   assert.equal(badPassword.response.status, 401);
-
-  return login.body.token;
 });
 
 test('progress is authenticated, isolated and persistent', async () => {
@@ -122,15 +120,16 @@ test('progress is authenticated, isolated and persistent', async () => {
   assert.equal(bobProgress.response.status, 200);
   assert.deepEqual(bobProgress.body.progress, {});
 
-  const connection = await sequelize.connectionManager.getConnection();
-  await sequelize.connectionManager.releaseConnection(connection);
+  await closeDatabase();
+  await initializeDatabase();
   const persisted = await request('/api/progress', { headers: { Authorization: `Bearer ${aliceToken}` } });
   assert.equal(persisted.response.status, 200);
   assert.equal(persisted.body.progress['2026-08-10'], 'completed');
   assert.equal(persisted.body.progress['2026-08-11'], 'partial');
 
-  const deleted = await sequelize.models.Progress.destroy({ where: { userId: alice.body.user.id } });
-  assert.equal(deleted, 3);
+  const deleted = await request('/api/progress', json('DELETE', {}, aliceToken));
+  assert.equal(deleted.response.status, 200);
+  assert.equal(deleted.body.deletedCount, 3);
 
   const afterDelete = await request('/api/progress', { headers: { Authorization: `Bearer ${aliceToken}` } });
   assert.deepEqual(afterDelete.body.progress, {});
