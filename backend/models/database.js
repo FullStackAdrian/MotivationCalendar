@@ -1,147 +1,78 @@
 /**
- * Modelo de datos con persistencia en PostgreSQL usando Sequelize ORM
- * Reemplaza la implementación en memoria por una base de datos real
+ * Persistencia PostgreSQL mediante Sequelize.
  */
-
-const { Sequelize, DataTypes } = require('sequelize');
+const { Sequelize, DataTypes, Op } = require('sequelize');
 const config = require('../config/config');
 
-// Configuración de conexión a PostgreSQL
-const sequelize = new Sequelize(
-  process.env.DATABASE_URL || `postgres://${process.env.DB_USER || 'postgres'}:${process.env.DB_PASSWORD || 'postgres'}@${process.env.DB_HOST || 'localhost'}:${process.env.DB_PORT || '5432'}/${process.env.DB_NAME || 'motivation_calendar'}`,
-  {
-    dialect: 'postgres',
-    logging: config.nodeEnv === 'development' ? console.log : false,
-    pool: {
-      max: 5,
-      min: 0,
-      acquire: 30000,
-      idle: 10000
-    }
-  }
-);
+const databaseUrl = process.env.DATABASE_URL ||
+  `postgres://${process.env.DB_USER || 'postgres'}:${process.env.DB_PASSWORD || 'postgres'}@${process.env.DB_HOST || 'localhost'}:${process.env.DB_PORT || '5432'}/${process.env.DB_NAME || 'motivation_calendar'}`;
 
-// Modelo User
+const sequelize = new Sequelize(databaseUrl, {
+  dialect: 'postgres',
+  logging: config.nodeEnv === 'development' ? console.log : false,
+  pool: { max: 10, min: 0, acquire: 30000, idle: 10000 }
+});
+
 const User = sequelize.define('User', {
   id: {
     type: DataTypes.STRING,
     primaryKey: true,
-    defaultValue: () => `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+    defaultValue: () => `user_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`
   },
   username: {
-    type: DataTypes.STRING,
+    type: DataTypes.STRING(50),
     allowNull: false,
     unique: true,
-    validate: {
-      len: [3, 50]
-    }
+    validate: { len: [3, 50] }
   },
   email: {
-    type: DataTypes.STRING,
+    type: DataTypes.STRING(255),
     allowNull: false,
     unique: true,
-    validate: {
-      isEmail: true
-    }
+    validate: { isEmail: true }
   },
-  password: {
-    type: DataTypes.STRING,
-    allowNull: false
-  },
-  createdAt: {
-    type: DataTypes.DATE,
-    defaultValue: DataTypes.NOW
-  }
-}, {
-  tableName: 'users',
-  timestamps: false
-});
+  password: { type: DataTypes.STRING, allowNull: false },
+  createdAt: { type: DataTypes.DATE, defaultValue: DataTypes.NOW }
+}, { tableName: 'users', timestamps: false });
 
-// Modelo Progress (para guardar el progreso diario)
 const Progress = sequelize.define('Progress', {
-  id: {
-    type: DataTypes.INTEGER,
-    primaryKey: true,
-    autoIncrement: true
-  },
+  id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
   userId: {
     type: DataTypes.STRING,
     allowNull: false,
-    references: {
-      model: User,
-      key: 'id'
-    }
+    references: { model: User, key: 'id' },
+    onDelete: 'CASCADE'
   },
   dayKey: {
-    type: DataTypes.STRING,
+    type: DataTypes.STRING(10),
     allowNull: false,
     comment: 'Clave del día en formato YYYY-MM-DD'
   },
   status: {
-    type: DataTypes.STRING,
+    type: DataTypes.STRING(20),
     allowNull: false,
-    validate: {
-      isIn: [['completed', 'locked', '']]
-    }
+    validate: { isIn: [['completed', 'partial', 'failed']] }
   },
-  updatedAt: {
-    type: DataTypes.DATE,
-    defaultValue: DataTypes.NOW
-  }
+  updatedAt: { type: DataTypes.DATE, defaultValue: DataTypes.NOW }
 }, {
   tableName: 'progress',
   timestamps: false,
-  indexes: [
-    {
-      unique: true,
-      fields: ['userId', 'dayKey']
-    }
-  ]
+  indexes: [{ unique: true, fields: ['userId', 'dayKey'] }]
 });
 
-// Relación entre User y Progress
-User.hasMany(Progress, { foreignKey: 'userId', as: 'progress' });
+User.hasMany(Progress, { foreignKey: 'userId', as: 'progress', onDelete: 'CASCADE' });
 Progress.belongsTo(User, { foreignKey: 'userId' });
 
-/**
- * Inicializa la base de datos (crea tablas si no existen)
- * @returns {Promise<void>}
- */
 const initializeDatabase = async () => {
-  try {
-    await sequelize.authenticate();
-    console.log('✅ Conexión a PostgreSQL establecida correctamente');
-    
-    // Sincronizar modelos (crear tablas si no existen)
-    await sequelize.sync({ alter: config.nodeEnv === 'development' });
-    console.log('✅ Tablas sincronizadas correctamente');
-  } catch (error) {
-    console.error('❌ Error al conectar con PostgreSQL:', error.message);
-    throw error;
-  }
+  await sequelize.authenticate();
+  console.log('Conexión a PostgreSQL establecida correctamente');
+  await sequelize.sync({ alter: config.nodeEnv === 'development' });
 };
 
-/**
- * Crea un nuevo usuario
- * @param {string} username - Nombre de usuario
- * @param {string} email - Email del usuario
- * @param {string} hashedPassword - Contraseña hasheada
- * @returns {Object} Usuario creado sin contraseña
- */
 const createUser = async (username, email, hashedPassword) => {
   try {
-    const user = await User.create({
-      username,
-      email,
-      password: hashedPassword
-    });
-    
-    return { 
-      id: user.id, 
-      username: user.username, 
-      email: user.email,
-      createdAt: user.createdAt 
-    };
+    const user = await User.create({ username, email, password: hashedPassword });
+    return user.toJSON();
   } catch (error) {
     if (error.name === 'SequelizeUniqueConstraintError') {
       throw new Error('El username o email ya existe');
@@ -150,123 +81,51 @@ const createUser = async (username, email, hashedPassword) => {
   }
 };
 
-/**
- * Busca un usuario por username o email
- * @param {string} identifier - Username o email
- * @returns {Object|null} Usuario encontrado o null
- */
-const findUserByIdentifier = async (identifier) => {
-  const user = await User.findOne({
-    where: {
-      username: identifier
-    }
-  });
-  
-  if (!user) {
-    // Intentar buscar por email
-    const userByEmail = await User.findOne({
-      where: { email: identifier }
-    });
-    return userByEmail;
+const findUserByIdentifier = async (identifier) => User.findOne({
+  where: {
+    [Op.or]: [
+      { username: identifier },
+      { email: identifier.toLowerCase() }
+    ]
   }
-  
-  return user;
-};
+});
 
-/**
- * Busca un usuario por ID
- * @param {string} userId - ID del usuario
- * @returns {Object|null} Usuario encontrado o null
- */
-const findUserById = async (userId) => {
-  return await User.findByPk(userId);
-};
+const findUserById = async (userId) => User.findByPk(userId);
+const findUserByEmail = async (email) => User.findOne({ where: { email: email.toLowerCase() } });
 
-/**
- * Busca un usuario por email
- * @param {string} email - Email del usuario
- * @returns {Object|null} Usuario encontrado o null
- */
-const findUserByEmail = async (email) => {
-  return await User.findOne({
-    where: { email }
-  });
-};
-
-/**
- * Busca un usuario por cualquier campo especificado
- * @param {string} field - Nombre del campo (username, email, id)
- * @param {string} value - Valor a buscar
- * @returns {Object|null} Usuario encontrado o null
- */
 const getUserByField = async (field, value) => {
   const validFields = ['username', 'email', 'id'];
   if (!validFields.includes(field)) {
     throw new Error(`Campo inválido: ${field}. Campos válidos: ${validFields.join(', ')}`);
   }
-  
-  return await User.findOne({
-    where: { [field]: value }
-  });
+  return User.findOne({ where: { [field]: value } });
 };
 
-/**
- * Obtiene el progreso de un usuario como objeto { dayKey: status }
- * @param {string} userId - ID del usuario
- * @returns {Object} Progreso del usuario
- */
 const getUserProgress = async (userId) => {
-  const progressRecords = await Progress.findAll({
-    where: { userId }
-  });
-  
-  // Convertir array a objeto { dayKey: status }
-  const progress = {};
-  progressRecords.forEach(record => {
-    progress[record.dayKey] = record.status;
-  });
-  
-  return progress;
+  const records = await Progress.findAll({ where: { userId } });
+  return Object.fromEntries(records.map((record) => [record.dayKey, record.status]));
 };
 
-/**
- * Actualiza el progreso de un usuario para un día específico
- * Usa upsert para crear o actualizar según exista
- * @param {string} userId - ID del usuario
- * @param {string} dayKey - Clave del día (YYYY-MM-DD)
- * @param {string} status - Estado del día
- * @returns {Object} Progreso actualizado
- */
 const updateUserProgress = async (userId, dayKey, status) => {
-  await Progress.upsert({
-    userId,
-    dayKey,
-    status,
-    updatedAt: new Date()
-  });
-  
-  // Retornar todo el progreso actualizado
-  return await getUserProgress(userId);
+  await Progress.upsert({ userId, dayKey, status, updatedAt: new Date() });
+  return getUserProgress(userId);
 };
 
-/**
- * Elimina el progreso de un usuario (para testing o reset)
- * @param {string} userId - ID del usuario
- */
-const deleteUserProgress = async (userId) => {
-  await Progress.destroy({
-    where: { userId }
+const updateUserProgressBulk = async (userId, updates) => {
+  await sequelize.transaction(async (transaction) => {
+    for (const [dayKey, status] of Object.entries(updates)) {
+      await Progress.upsert(
+        { userId, dayKey, status, updatedAt: new Date() },
+        { transaction }
+      );
+    }
   });
+
+  return getUserProgress(userId);
 };
 
-/**
- * Cierra la conexión a la base de datos
- * @returns {Promise<void>}
- */
-const closeDatabase = async () => {
-  await sequelize.close();
-  console.log('🔒 Conexión a PostgreSQL cerrada');
-};
+const deleteUserProgress = async (userId) => Progress.destroy({ where: { userId } });
+const closeDatabase = async () => sequelize.close();
 
 module.exports = {
   sequelize,
@@ -280,6 +139,7 @@ module.exports = {
   findUserById,
   getUserProgress,
   updateUserProgress,
+  updateUserProgressBulk,
   deleteUserProgress,
   closeDatabase
 };

@@ -1,21 +1,14 @@
 /**
- * Cliente API para comunicación con el backend
- * Maneja autenticación y sincronización de datos
+ * Cliente API para comunicación con el backend.
+ * La URL de producción se configura mediante window.APP_CONFIG.apiBaseUrl.
  */
-
-// Detectar baseURL automáticamente según el entorno
 const getBaseURL = () => {
-  // Si estamos en GitHub Pages, usar la URL del repositorio
-  const hostname = window.location.hostname;
-  
-  if (hostname.includes('github.io')) {
-    // GitHub Pages: usar GitHub Actions para backend o servicio externo
-    // Por defecto, apuntamos a un servicio desplegado (ej. Railway, Render, etc.)
-    // El usuario debe configurar esta variable si usa otro proveedor
-    return window.GITHUB_PAGES_API_URL || 'https://tu-backend.herokuapp.com';
+  const configuredURL = window.APP_CONFIG?.apiBaseUrl;
+  if (configuredURL) {
+    return configuredURL.replace(/\/$/, '');
   }
-  
-  // Desarrollo local o servidor Node.js directo
+
+  // Same-origin is useful when the frontend is served by the backend.
   return '';
 };
 
@@ -25,10 +18,6 @@ class APIClient {
     this.token = localStorage.getItem('authToken');
   }
 
-  /**
-   * Establece el token de autenticación
-   * @param {string} token - JWT token
-   */
   setToken(token) {
     this.token = token;
     if (token) {
@@ -38,121 +27,72 @@ class APIClient {
     }
   }
 
-  /**
-   * Obtiene headers para requests autenticados
-   * @returns {Object} Headers HTTP
-   */
   getAuthHeaders() {
     const headers = { 'Content-Type': 'application/json' };
     if (this.token) {
-      headers['Authorization'] = `Bearer ${this.token}`;
+      headers.Authorization = `Bearer ${this.token}`;
     }
     return headers;
   }
 
-  /**
-   * Realiza una petición HTTP
-   * @param {string} endpoint - Endpoint de la API
-   * @param {Object} options - Opciones de fetch
-   * @returns {Promise<any>} Respuesta parseada
-   */
   async request(endpoint, options = {}) {
     const url = `${this.baseURL}${endpoint}`;
-    const config = {
+    const requestConfig = {
       ...options,
-      headers: {
-        ...this.getAuthHeaders(),
-        ...options.headers
-      }
+      headers: { ...this.getAuthHeaders(), ...options.headers }
     };
 
-    try {
-      const response = await fetch(url, config);
-      const data = await response.json();
+    const response = await fetch(url, requestConfig);
+    const contentType = response.headers.get('content-type') || '';
+    const data = contentType.includes('application/json')
+      ? await response.json()
+      : null;
 
-      if (!response.ok) {
-        throw new Error(data.error || 'Error en la petición');
-      }
-
-      return data;
-    } catch (error) {
-      console.error('API Error:', error);
-      throw error;
+    if (!response.ok) {
+      throw new Error(data?.error || `Error HTTP ${response.status}`);
     }
+
+    return data;
   }
 
-  /**
-   * Registra un nuevo usuario
-   * @param {string} username - Nombre de usuario
-   * @param {string} email - Email
-   * @param {string} password - Contraseña
-   * @returns {Promise<Object>} Datos del usuario y token
-   */
   async register(username, email, password) {
     const data = await this.request('/api/auth/register', {
       method: 'POST',
       body: JSON.stringify({ username, email, password })
     });
-    
-    if (data.token) {
-      this.setToken(data.token);
-    }
-    
+    if (data?.token) this.setToken(data.token);
     return data;
   }
 
-  /**
-   * Inicia sesión
-   * @param {string} identifier - Username o email
-   * @param {string} password - Contraseña
-   * @returns {Promise<Object>} Datos del usuario y token
-   */
   async login(identifier, password) {
     const data = await this.request('/api/auth/login', {
       method: 'POST',
       body: JSON.stringify({ identifier, password })
     });
-    
-    if (data.token) {
-      this.setToken(data.token);
-    }
-    
+    if (data?.token) this.setToken(data.token);
     return data;
   }
 
-  /**
-   * Cierra sesión
-   */
   logout() {
     this.setToken(null);
   }
 
-  /**
-   * Verifica si hay un token válido
-   * @returns {boolean} True si está autenticado
-   */
   isAuthenticated() {
     return !!this.token;
   }
 
-  /**
-   * Obtiene el usuario actual decodificando el token
-   * @returns {Object|null} Datos del usuario o null
-   */
   getCurrentUser() {
     if (!this.token) return null;
-    
+
     try {
-      // Decodificar JWT para obtener información del usuario
       const base64Url = this.token.split('.')[1];
+      if (!base64Url) return null;
       const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-      const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => 
-        '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)
+      const jsonPayload = decodeURIComponent(atob(base64).split('').map((c) =>
+        `%${(`00${c.charCodeAt(0).toString(16)}`).slice(-2)}`
       ).join(''));
-      
       const payload = JSON.parse(jsonPayload);
-      
-      // Retornar solo datos públicos del usuario
+
       return {
         id: payload.id || payload.userId,
         username: payload.username,
@@ -164,47 +104,27 @@ class APIClient {
     }
   }
 
-  /**
-   * Obtiene el progreso del usuario
-   * @returns {Promise<Object>} Progreso diario
-   */
   async getProgress() {
-    return await this.request('/api/progress');
+    return this.request('/api/progress');
   }
 
-  /**
-   * Actualiza el estado de un día
-   * @param {string} dayKey - Fecha en formato YYYY-MM-DD
-   * @param {string} status - Estado (completed, failed, partial)
-   * @returns {Promise<Object>} Progreso actualizado
-   */
   async updateDay(dayKey, status) {
-    return await this.request(`/api/progress/${dayKey}`, {
+    return this.request(`/api/progress/${dayKey}`, {
       method: 'PUT',
       body: JSON.stringify({ status })
     });
   }
 
-  /**
-   * Actualiza múltiples días a la vez
-   * @param {Object} updates - Objeto con fechas y estados
-   * @returns {Promise<Object>} Progreso actualizado
-   */
   async bulkUpdate(updates) {
-    return await this.request('/api/progress/bulk', {
+    return this.request('/api/progress/bulk', {
       method: 'POST',
       body: JSON.stringify({ updates })
     });
   }
 
-  /**
-   * Verifica que el servidor esté disponible
-   * @returns {Promise<Object>} Estado del servidor
-   */
   async healthCheck() {
-    return await this.request('/api/health');
+    return this.request('/api/health');
   }
 }
 
-// Exportar instancia global
 window.apiClient = new APIClient();

@@ -1,17 +1,9 @@
 /**
- * Middleware de autenticación JWT
- * Verifica y valida los tokens de acceso
+ * Middleware de autenticación JWT.
  */
-
 const jwt = require('jsonwebtoken');
 const config = require('../config/config');
 
-/**
- * Verifica que el request tenga un token JWT válido
- * @param {Object} req - Request de Express
- * @param {Object} res - Response de Express
- * @param {Function} next - Siguiente middleware
- */
 const verifyToken = (req, res, next) => {
   const authHeader = req.headers.authorization;
 
@@ -19,21 +11,19 @@ const verifyToken = (req, res, next) => {
     return res.status(401).json({ error: 'No se proporcionó token de autenticación' });
   }
 
-  const token = authHeader.split(' ')[1];
-
-  if (!token) {
+  const [scheme, token] = authHeader.split(' ');
+  if (scheme !== 'Bearer' || !token || authHeader.split(' ').length !== 2) {
     return res.status(401).json({ error: 'Formato de token inválido' });
   }
 
   try {
-    const decoded = jwt.verify(token, config.jwtSecret);
-    req.user = decoded;
-    next();
+    req.user = jwt.verify(token, config.jwtSecret);
+    return next();
   } catch (error) {
     if (error.name === 'TokenExpiredError') {
       return res.status(401).json({ error: 'Token expirado' });
     }
-    return res.status(403).json({ error: 'Token inválido' });
+    return res.status(401).json({ error: 'Token inválido' });
   }
 };
 

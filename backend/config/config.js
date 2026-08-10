@@ -1,21 +1,29 @@
 /**
- * Configuración del servidor
- * Centraliza las variables de entorno y configuración global
+ * Configuración del servidor.
+ * Centraliza y valida las variables de entorno.
  */
 
-// Validar que JWT_SECRET esté configurado
+const parseAllowedOrigins = (value) => {
+  if (!value) {
+    return ['http://localhost:3000', 'http://127.0.0.1:3000'];
+  }
+
+  return value
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+};
+
 if (!process.env.JWT_SECRET) {
-  throw new Error('❌ ERROR: JWT_SECRET no está configurado. Define la variable de entorno JWT_SECRET en tu archivo .env');
+  throw new Error('JWT_SECRET no está configurado');
 }
 
 const config = {
-  port: process.env.PORT || 3000,
+  port: Number(process.env.PORT) || 3000,
   jwtSecret: process.env.JWT_SECRET,
-  jwtExpiresIn: '30d',
+  jwtExpiresIn: process.env.JWT_EXPIRES_IN || '30d',
   nodeEnv: process.env.NODE_ENV || 'development',
-  allowedOrigins: process.env.ALLOWED_ORIGINS 
-    ? process.env.ALLOWED_ORIGINS.split(',') 
-    : ['http://localhost:3000', 'http://127.0.0.1:3000']
+  allowedOrigins: parseAllowedOrigins(process.env.ALLOWED_ORIGINS)
 };
 
 module.exports = config;

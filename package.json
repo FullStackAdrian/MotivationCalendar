@@ -6,8 +6,9 @@
   "scripts": {
     "start": "node backend/server.js",
     "dev": "node backend/server.js",
-    "install:all": "npm install",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node --test",
+    "test:watch": "node --test --watch",
+    "install:all": "npm install"
   },
   "keywords": [
     "tracker",
@@ -29,6 +30,6 @@
     "sequelize": "^6.37.8"
   },
   "engines": {
-    "node": ">=14.0.0"
+    "node": ">=18.20.0"
   }
 }
