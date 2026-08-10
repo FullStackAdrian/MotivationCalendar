@@ -32,25 +32,6 @@ jobs:
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
-      - name: Configure GitHub Pages for Actions deployments
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          curl --fail-with-body --request PUT \
-            --url "https://api.github.com/repos/${{ github.repository }}/pages" \
-            --header "Accept: application/vnd.github+json" \
-            --header "Authorization: Bearer ${GH_TOKEN}" \
-            --header "X-GitHub-Api-Version: 2026-03-10" \
-            --data '{"build_type":"workflow","source":{"branch":"master","path":"/"}}'
-
-          build_type=$(curl --fail-with-body --silent \
-            --url "https://api.github.com/repos/${{ github.repository }}/pages" \
-            --header "Accept: application/vnd.github+json" \
-            --header "Authorization: Bearer ${GH_TOKEN}" \
-            --header "X-GitHub-Api-Version: 2026-03-10" | python -c 'import json,sys; print(json.load(sys.stdin).get("build_type", ""))')
-
-          test "$build_type" = "workflow"
-
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
