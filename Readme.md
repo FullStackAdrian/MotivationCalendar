@@ -21,12 +21,45 @@ Motivation Calendar is a simple web application that helps you visualize your ye
 
 ## Getting Started
 
-### Prerequisites
+### Option A — Docker Compose (recommended)
+
+Docker is the easiest way to start the complete local stack because it provides PostgreSQL and the backend together.
+
+```bash
+cp .env.docker.example .env
+docker compose up --build
+```
+
+Then open `http://localhost:3000`.
+
+The first startup may take a little longer while the image is built and PostgreSQL initializes. The backend waits for PostgreSQL's health check before starting.
+
+Useful commands:
+
+```bash
+# Follow logs
+docker compose logs -f
+
+# Stop containers while keeping database data
+docker compose down
+
+# Stop containers and delete the local database volume
+docker compose down -v
+
+# Rebuild after Dockerfile/dependency changes
+docker compose up --build
+```
+
+The local database is persisted in the `motivation-calendar-postgres-data` Docker volume. The default credentials and JWT secret in `.env.docker.example` are development-only values and must never be used in production.
+
+### Option B — Native Node.js
+
+#### Prerequisites
 - Node.js 20 for CI parity
 - PostgreSQL 16 for integration tests and local backend development
 - npm
 
-### Installation
+#### Installation
 
 ```bash
 npm ci
@@ -73,8 +106,10 @@ motivation-calendar/
 │   ├── ci.yml
 │   ├── deploy.yml
 │   └── docker.yml
+├── docker-compose.yml
 ├── docker-compose.ci.yml
 ├── .env.example
+├── .env.docker.example
 ├── package.json
 └── Readme.md
 ```
@@ -117,8 +152,6 @@ The Docker workflow builds and inspects the backend image, starts the PostgreSQL
 ### Deployment
 
 Deployment is intentionally separate from CI. A successful CI run on `master` triggers the GitHub Pages frontend deployment and creates the backend tarball artifact. The backend is **not** claimed to be deployed to a hosting provider until one is configured.
-
-Recommended future backend providers include Render, Railway, Fly.io or a self-managed VPS.
 
 ## Security Notes
 
