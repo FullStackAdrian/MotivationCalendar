@@ -1,4 +1,4 @@
-name: Deploy
+name: Deploy backend artifact
 
 on:
   workflow_run:
@@ -9,41 +9,11 @@ on:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 env:
   NODE_VERSION: '20'
 
-concurrency:
-  group: pages
-  cancel-in-progress: false
-
 jobs:
-  deploy-frontend:
-    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout tested commit
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
-
-      - name: Setup Pages
-        uses: actions/configure-pages@v5
-
-      - name: Upload frontend
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: ./frontend
-
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
-
   backend-artifact:
     if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
