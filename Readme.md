@@ -4,104 +4,79 @@
 
 ## Overview
 
-Motivation Calendar is a simple designed web application that helps you visualize your year at a glance. Track your daily progress, habits, and goals using an intuitive color-coding system. Watch your year fill with motivation as you mark off each day.
-
-Perfect for:
-- 📊 Habit tracking
-- 🎯 Goal monitoring
-- 📈 Progress visualization
-- 💪 Building streaks
-- 🎨 Personal motivation mapping
+Motivation Calendar is a simple web application that helps you visualize your year at a glance. Track your daily progress, habits, and goals using an intuitive color-coding system.
 
 ## Features
 
 ### Core Features
 - **📅 365-Day Canvas**: Interactive calendar view of the entire year
-- **🎨 Color-Coded System**: 4 colors to represent different level of task completion
-- **✨ Minimalist Design**: Clean, distraction-free interface focused on your progress
+- **🎨 Color-Coded System**: Statuses for completed, partial and failed days
+- **✨ Minimalist Design**: Clean, distraction-free interface
 
 ### Authentication & Sync
-- **🔐 JWT Authentication**: Secure user authentication with bcrypt password hashing
-- **💾 Local Storage Sync**: Your data automatically saves to your device
-- **🔄 Auto-Save**: Never lose your progress with real-time data persistence
-- **☁️ Cross-device Sync**: Sync your progress across multiple devices
-
-### User Experience
-- **🎯 Quick Entry**: One-click color assignment for any day
-- **📊 Statistics**: Track your consistency and streaks at a glance
-- **🌐 Responsive Design**: Works on desktop and mobile devices
+- **🔐 JWT Authentication** with bcrypt password hashing
+- **💾 PostgreSQL persistence** through Sequelize
+- **🔄 Auto-Save** and bulk progress synchronization
+- **☁️ Cross-device Sync** through the authenticated API
 
 ## Getting Started
 
 ### Prerequisites
-- Node.js >= 14.0.0
-- npm or yarn
+- Node.js 20 for CI parity
+- PostgreSQL 16 for integration tests and local backend development
+- npm
 
 ### Installation
 
-1. Clone the repository:
 ```bash
-git clone <repository-url>
-cd motivation-calendar
-```
-
-2. Install dependencies:
-```bash
-npm install
-```
-
-3. Configure environment variables:
-```bash
+npm ci
 cp .env.example .env
 ```
 
-Edit `.env` and set your values:
-```env
-PORT=3000
-JWT_SECRET=tu-secreto-super-seguro-cambia-en-produccion
-NODE_ENV=development
-ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
-```
+Set `JWT_SECRET`, `NODE_ENV`, `DATABASE_URL`/database variables and `ALLOWED_ORIGINS` in `.env`, then start the server:
 
-4. Start the server:
 ```bash
 npm start
 ```
 
-5. Open your browser at `http://localhost:3000`
+Open `http://localhost:3000` in your browser.
 
-### Basic Usage
-1. **Register** a new account or **Login** with existing credentials
-2. **Click on any day** to assign a status (completed, partial, failed)
-3. **View statistics** to see your progress and consistency
-4. Your data is **automatically synced** between local storage and the server
+## Tests and quality checks
+
+The repository intentionally does not use `npm test` as its only CI criterion. The CI pipeline runs Node 20, a real PostgreSQL 16 service, static frontend checks, integration tests, coverage and security auditing.
+
+```bash
+npm run lint
+npm test
+npm run test:integration
+npm run test:frontend
+npm run test:coverage
+npm audit --audit-level=high
+```
+
+`test/integration/api.test.js` exercises the HTTP API against PostgreSQL, including registration, duplicate conflicts, login, authentication failures, user isolation, single-day updates, bulk updates, persistence after reconnecting to the database, and deletion.
+
+Coverage output is uploaded by GitHub Actions as the `test-coverage` artifact. The initial pipeline deliberately reports coverage rather than imposing an artificial 100% threshold; a backend-critical threshold can be introduced once the baseline is established.
 
 ## Project Structure
 
-```
+```text
 motivation-calendar/
 ├── backend/
-│   ├── config/          # Server configuration
-│   ├── controllers/     # Request handlers
-│   ├── middleware/      # Express middleware (auth, etc.)
-│   ├── models/          # Data models and database
-│   ├── presenters/      # Response formatters
-│   ├── routes/          # API routes
-│   ├── services/        # Business logic
-│   ├── usecases/        # Use case orchestration
-│   └── server.js        # Entry point
 ├── frontend/
-│   ├── assets/
-│   │   ├── css/         # Stylesheets
-│   │   ├── images/      # Static images
-│   │   └── js/
-│   │       ├── views/   # UI components
-│   │       └── app.js   # Main application logic
-│   └── index.html       # Main HTML file
-├── .env.example         # Environment variables template
-├── .gitignore           # Git ignore rules
-├── package.json         # Dependencies and scripts
-└── README.md            # This file
+├── scripts/
+│   ├── check-js-syntax.js
+│   ├── frontend-smoke.js
+│   └── security-check.js
+├── test/integration/
+├── .github/workflows/
+│   ├── ci.yml
+│   ├── deploy.yml
+│   └── docker.yml
+├── docker-compose.ci.yml
+├── .env.example
+├── package.json
+└── Readme.md
 ```
 
 ## API Endpoints
@@ -114,27 +89,44 @@ motivation-calendar/
 - `GET /api/progress` - Get user's progress
 - `PUT /api/progress/:dayKey` - Update a specific day (YYYY-MM-DD)
 - `POST /api/progress/bulk` - Update multiple days at once
+- `DELETE /api/progress` - Delete the authenticated user's progress
 
 ### Health Check
 - `GET /api/health` - Server health status
 
-## To Do
+## GitHub Actions
 
-- [ ] Dark mode
-- [ ] MongoDB/PostgreSQL integration for persistent storage
-- [ ] Unit and integration tests
-- [ ] Password reset functionality
-- [ ] Email verification
-- [ ] Export data feature
-- [ ] Mobile app (React Native/Flutter)
+### CI
+
+Pull requests and pushes to `master` run:
+
+1. Node 20 setup and `npm ci`
+2. JavaScript syntax/lint checks
+3. Unit tests
+4. PostgreSQL-backed HTTP integration tests
+5. Frontend static smoke tests
+6. Test coverage and artifact upload
+7. `npm audit --audit-level=high`
+
+The workflow uses minimal `contents: read` permissions.
+
+### Docker
+
+The Docker workflow builds and inspects the backend image, starts the PostgreSQL + backend compose stack, waits for `/api/health`, and performs frontend smoke checks through the packaged backend.
+
+### Deployment
+
+Deployment is intentionally separate from CI. A successful CI run on `master` triggers the GitHub Pages frontend deployment and creates the backend tarball artifact. The backend is **not** claimed to be deployed to a hosting provider until one is configured.
+
+Recommended future backend providers include Render, Railway, Fly.io or a self-managed VPS.
 
 ## Security Notes
 
-⚠️ **Important for Production:**
-- Change `JWT_SECRET` to a strong random value
-- Set `ALLOWED_ORIGINS` to your specific domains
-- Use HTTPS in production
-- Consider rate limiting for API endpoints
+- Never commit `.env` or real secrets.
+- Use a strong random `JWT_SECRET` in production.
+- Set `ALLOWED_ORIGINS` to the actual production origins.
+- Use HTTPS in production.
+- Consider rate limiting before exposing the API publicly.
 
 ## License
 
