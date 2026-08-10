@@ -15,21 +15,14 @@ let server;
 let baseUrl;
 
 async function request(path, options = {}) {
-  const response = await fetch(`${baseUrl}${path}`, {
-    ...options,
-    headers: { 'Content-Type': 'application/json', ...(options.headers || {}) }
-  });
+  const response = await fetch(`${baseUrl}${path}`, { ...options, headers: { 'Content-Type': 'application/json', ...(options.headers || {}) } });
   const contentType = response.headers.get('content-type') || '';
   const body = contentType.includes('application/json') ? await response.json() : await response.text();
   return { response, body };
 }
 
 function json(method, body, token) {
-  return {
-    method,
-    body: JSON.stringify(body),
-    headers: token ? { Authorization: `Bearer ${token}` } : undefined
-  };
+  return { method, body: JSON.stringify(body), headers: token ? { Authorization: `Bearer ${token}` } : undefined };
 }
 
 test.before(async () => {
@@ -47,138 +40,86 @@ test.after(async () => {
 
 test('health and frontend smoke endpoints work', async () => {
   const health = await request('/api/health');
-  assert.equal(health.response.status, 200);
-  assert.equal(health.body.status, 'ok');
-  assert.equal(health.body.database, 'ok');
-
+  assert.equal(health.response.status, 200); assert.equal(health.body.status, 'ok'); assert.equal(health.body.database, 'ok');
   const index = await request('/');
-  assert.equal(index.response.status, 200);
-  assert.match(index.body, /<title>2026/);
-
+  assert.equal(index.response.status, 200); assert.match(index.body, /<title>2026/);
   const asset = await request('/assets/js/api-client.js');
-  assert.equal(asset.response.status, 200);
-  assert.match(asset.body, /APP_CONFIG/);
+  assert.equal(asset.response.status, 200); assert.match(asset.body, /APP_CONFIG/);
 });
 
 test('authentication rejects malformed JSON payloads with 400', async () => {
-  const malformed = await request('/api/auth/register', {
-    method: 'POST',
-    body: '{"username":'
-  });
-  assert.equal(malformed.response.status, 400);
-  assert.equal(malformed.body.error, 'JSON inválido');
-
-  const objectBody = await request('/api/auth/register', json('POST', {
-    username: { invalid: true }, email: 'alice@example.com', password: 'password123'
-  }));
+  const malformed = await request('/api/auth/register', { method: 'POST', body: '{"username":' });
+  assert.equal(malformed.response.status, 400); assert.equal(malformed.body.error, 'JSON inválido');
+  const objectBody = await request('/api/auth/register', json('POST', { username: { invalid: true }, email: 'alice@example.com', password: 'password123' }));
   assert.equal(objectBody.response.status, 400);
-
-  const invalidLogin = await request('/api/auth/login', {
-    method: 'POST',
-    body: 'null'
-  });
+  const invalidLogin = await request('/api/auth/login', { method: 'POST', body: 'null' });
   assert.equal(invalidLogin.response.status, 400);
 });
 
 test('register, duplicate conflicts and login flow', async () => {
-  const registration = await request('/api/auth/register', json('POST', {
-    username: 'alice', email: 'alice@example.com', password: 'password123'
-  }));
-  assert.equal(registration.response.status, 201);
-  assert.ok(registration.body.token);
-
-  const duplicateEmail = await request('/api/auth/register', json('POST', {
-    username: 'alice2', email: 'alice@example.com', password: 'password123'
-  }));
+  const registration = await request('/api/auth/register', json('POST', { username: 'alice', email: 'alice@example.com', password: 'password123' }));
+  assert.equal(registration.response.status, 201); assert.ok(registration.body.token);
+  const duplicateEmail = await request('/api/auth/register', json('POST', { username: 'alice2', email: 'alice@example.com', password: 'password123' }));
   assert.equal(duplicateEmail.response.status, 409);
-
-  const duplicateUsername = await request('/api/auth/register', json('POST', {
-    username: 'alice', email: 'alice2@example.com', password: 'password123'
-  }));
+  const duplicateUsername = await request('/api/auth/register', json('POST', { username: 'alice', email: 'alice2@example.com', password: 'password123' }));
   assert.equal(duplicateUsername.response.status, 409);
-
-  const login = await request('/api/auth/login', json('POST', {
-    identifier: 'alice', password: 'password123'
-  }));
-  assert.equal(login.response.status, 200);
-  assert.ok(login.body.token);
-
-  const badPassword = await request('/api/auth/login', json('POST', {
-    identifier: 'alice', password: 'wrong-password'
-  }));
+  const login = await request('/api/auth/login', json('POST', { identifier: 'alice', password: 'password123' }));
+  assert.equal(login.response.status, 200); assert.ok(login.body.token);
+  const badPassword = await request('/api/auth/login', json('POST', { identifier: 'alice', password: 'wrong-password' }));
   assert.equal(badPassword.response.status, 401);
 });
 
+test('progress validation rejects invalid statuses, dates and bulk shapes', async () => {
+  const login = await request('/api/auth/login', json('POST', { identifier: 'alice', password: 'password123' }));
+  const token = login.body.token;
+
+  const invalidStatus = await request('/api/progress/2026-08-15', json('PUT', { status: 'unknown' }, token));
+  assert.equal(invalidStatus.response.status, 400);
+  assert.match(invalidStatus.body.error, /Status inválido/);
+
+  const malformedBulk = await request('/api/progress/bulk', json('POST', { updates: [] }, token));
+  assert.equal(malformedBulk.response.status, 400);
+
+  const invalidBulkDate = await request('/api/progress/bulk', json('POST', { updates: { '2026-02-30': 'completed' } }, token));
+  assert.equal(invalidBulkDate.response.status, 400);
+
+  const invalidBulkStatus = await request('/api/progress/bulk', json('POST', { updates: { '2026-08-15': 'unknown' } }, token));
+  assert.equal(invalidBulkStatus.response.status, 400);
+});
+
 test('progress is authenticated, isolated and persistent', async () => {
-  const alice = await request('/api/auth/login', json('POST', {
-    identifier: 'alice', password: 'password123'
-  }));
+  const alice = await request('/api/auth/login', json('POST', { identifier: 'alice', password: 'password123' }));
   const aliceToken = alice.body.token;
-
-  const bob = await request('/api/auth/register', json('POST', {
-    username: 'bob', email: 'bob@example.com', password: 'password123'
-  }));
+  const bob = await request('/api/auth/register', json('POST', { username: 'bob', email: 'bob@example.com', password: 'password123' }));
   const bobToken = bob.body.token;
-
   const unauthenticated = await request('/api/progress');
   assert.equal(unauthenticated.response.status, 401);
-
-  const invalidJwt = await request('/api/progress', {
-    headers: { Authorization: 'Bearer invalid.jwt.token' }
-  });
+  const invalidJwt = await request('/api/progress', { headers: { Authorization: 'Bearer invalid.jwt.token' } });
   assert.equal(invalidJwt.response.status, 401);
-
   const created = await request('/api/progress/2026-08-10', json('PUT', { status: 'completed' }, aliceToken));
-  assert.equal(created.response.status, 200);
-  assert.equal(created.body.progress['2026-08-10'], 'completed');
-
+  assert.equal(created.response.status, 200); assert.equal(created.body.progress['2026-08-10'], 'completed');
   const invalidDate = await request('/api/progress/2026-02-30', json('PUT', { status: 'completed' }, aliceToken));
   assert.equal(invalidDate.response.status, 400);
-
-  const bulk = await request('/api/progress/bulk', json('POST', {
-    updates: { '2026-08-11': 'partial', '2026-08-12': 'failed' }
-  }, aliceToken));
-  assert.equal(bulk.response.status, 200);
-  assert.equal(bulk.body.updatedCount, 2);
-
-  const oversizedBulk = await request('/api/progress/bulk', json('POST', {
-    updates: Object.fromEntries(Array.from({ length: 501 }, (_, index) => [`2026-01-${String(index + 1).padStart(2, '0')}`, 'completed']))
-  }, aliceToken));
+  const bulk = await request('/api/progress/bulk', json('POST', { updates: { '2026-08-11': 'partial', '2026-08-12': 'failed' } }, aliceToken));
+  assert.equal(bulk.response.status, 200); assert.equal(bulk.body.updatedCount, 2);
+  const oversizedBulk = await request('/api/progress/bulk', json('POST', { updates: Object.fromEntries(Array.from({ length: 501 }, (_, index) => [`2026-01-${String(index + 1).padStart(2, '0')}`, 'completed'])) }, aliceToken));
   assert.equal(oversizedBulk.response.status, 400);
-
   const bobProgress = await request('/api/progress', { headers: { Authorization: `Bearer ${bobToken}` } });
-  assert.equal(bobProgress.response.status, 200);
-  assert.deepEqual(bobProgress.body.progress, {});
-
+  assert.equal(bobProgress.response.status, 200); assert.deepEqual(bobProgress.body.progress, {});
   const client = new Client({ connectionString: process.env.DATABASE_URL });
   await client.connect();
   try {
-    const persisted = await client.query(
-      'SELECT "dayKey", status FROM progress WHERE "userId" = $1 ORDER BY "dayKey"',
-      [alice.body.user.id]
-    );
+    const persisted = await client.query('SELECT "dayKey", status FROM progress WHERE "userId" = $1 ORDER BY "dayKey"', [alice.body.user.id]);
     assert.deepEqual(persisted.rows, [
       { dayKey: '2026-08-10', status: 'completed' },
       { dayKey: '2026-08-11', status: 'partial' },
       { dayKey: '2026-08-12', status: 'failed' }
     ]);
-  } finally {
-    await client.end();
-  }
-
-  const persistedViaApi = await request('/api/progress', {
-    headers: { Authorization: `Bearer ${aliceToken}` }
-  });
-  assert.equal(persistedViaApi.response.status, 200);
-  assert.equal(persistedViaApi.body.progress['2026-08-10'], 'completed');
-  assert.equal(persistedViaApi.body.progress['2026-08-11'], 'partial');
-
+  } finally { await client.end(); }
+  const persistedViaApi = await request('/api/progress', { headers: { Authorization: `Bearer ${aliceToken}` } });
+  assert.equal(persistedViaApi.response.status, 200); assert.equal(persistedViaApi.body.progress['2026-08-10'], 'completed'); assert.equal(persistedViaApi.body.progress['2026-08-11'], 'partial');
   const deleted = await request('/api/progress', json('DELETE', {}, aliceToken));
-  assert.equal(deleted.response.status, 200);
-  assert.equal(deleted.body.deletedCount, 3);
-
-  const afterDelete = await request('/api/progress', {
-    headers: { Authorization: `Bearer ${aliceToken}` }
-  });
+  assert.equal(deleted.response.status, 200); assert.equal(deleted.body.deletedCount, 3);
+  const afterDelete = await request('/api/progress', { headers: { Authorization: `Bearer ${aliceToken}` } });
   assert.deepEqual(afterDelete.body.progress, {});
 });
