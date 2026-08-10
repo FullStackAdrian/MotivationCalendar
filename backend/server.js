@@ -27,7 +27,6 @@ const allowedOrigins = config.allowedOrigins;
 
 app.use(cors({
   origin(origin, callback) {
-    // Requests without an Origin (curl, server-to-server, health checks) are allowed.
     if (!origin || allowedOrigins.includes(origin)) {
       return callback(null, true);
     }
@@ -80,7 +79,22 @@ app.get('/{*splat}', (req, res) => {
 
 app.use((err, req, res, next) => {
   console.error('Error no manejado:', err);
-  res.status(err.message === 'No permitido por CORS' ? 403 : 500).json({
+
+  if (err.type === 'entity.parse.failed') {
+    return res.status(400).json({ error: 'JSON inválido' });
+  }
+
+  if (err.type === 'entity.too.large') {
+    return res.status(413).json({ error: 'Payload demasiado grande' });
+  }
+
+  if (err.message === 'No permitido por CORS') {
+    return res.status(403).json({
+      error: config.nodeEnv === 'development' ? err.message : 'Origen no permitido'
+    });
+  }
+
+  return res.status(500).json({
     error: config.nodeEnv === 'development' ? err.message : 'Error interno del servidor'
   });
 });
