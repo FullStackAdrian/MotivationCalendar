@@ -13,12 +13,13 @@ const { verifyToken } = require('../backend/middleware/auth');
 const { getUserByField } = require('../backend/models/database');
 
 function responseDouble() {
-  return {
+  const response = {
     statusCode: 200,
     body: undefined,
     status(code) { this.statusCode = code; return this; },
     json(body) { this.body = body; return this; }
   };
+  return response;
 }
 
 test('AuthPresenter formats registration and login responses without passwords', () => {
@@ -84,7 +85,7 @@ test('UserService verifies passwords, creates tokens and sanitizes users', async
   assert.equal(await service.verifyPassword('secret123', hash), true);
   assert.equal(await service.verifyPassword('wrong', hash), false);
   const token = service.generateToken({ id: 'u1', username: 'alice' });
-  assert.equal(jwt.verify(token, 'test-secret').userId, 'u1');
+  assert.deepEqual(jwt.verify(token, 'test-secret').userId, 'u1');
   assert.deepEqual(service._sanitizeUser({ id: 'u1', password: 'secret', username: 'alice' }), { id: 'u1', username: 'alice' });
   assert.deepEqual(service._sanitizeUser({ toJSON: () => ({ id: 'u2', password: 'secret', username: 'bob' }) }), { id: 'u2', username: 'bob' });
   assert.equal(service._sanitizeUser(null), null);
