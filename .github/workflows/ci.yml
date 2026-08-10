@@ -50,6 +50,9 @@ jobs:
       - name: Lint and syntax checks
         run: npm run lint
 
+      - name: Repository security configuration checks
+        run: node scripts/security-check.js
+
       - name: Unit tests
         run: npm test
 
