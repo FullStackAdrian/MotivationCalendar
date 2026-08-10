@@ -1,6 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { once } = require('node:events');
+const { Client } = require('pg');
 
 process.env.NODE_ENV = 'test';
 process.env.JWT_SECRET = process.env.JWT_SECRET || 'test-secret';
@@ -120,17 +121,37 @@ test('progress is authenticated, isolated and persistent', async () => {
   assert.equal(bobProgress.response.status, 200);
   assert.deepEqual(bobProgress.body.progress, {});
 
-  await closeDatabase();
-  await initializeDatabase();
-  const persisted = await request('/api/progress', { headers: { Authorization: `Bearer ${aliceToken}` } });
-  assert.equal(persisted.response.status, 200);
-  assert.equal(persisted.body.progress['2026-08-10'], 'completed');
-  assert.equal(persisted.body.progress['2026-08-11'], 'partial');
+  // Verify persistence through a separate PostgreSQL connection/pool.
+  // This proves the data is actually in PostgreSQL, rather than only in Sequelize's current connection.
+  const client = new Client({ connectionString: process.env.DATABASE_URL });
+  await client.connect();
+  try {
+    const persisted = await client.query(
+      'SELECT "dayKey", status FROM progress WHERE "userId" = $1 ORDER BY "dayKey"',
+      [alice.body.user.id]
+    );
+    assert.deepEqual(persisted.rows, [
+      { dayKey: '2026-08-10', status: 'completed' },
+      { dayKey: '2026-08-11', status: 'partial' },
+      { dayKey: '2026-08-12', status: 'failed' }
+    ]);
+  } finally {
+    await client.end();
+  }
+
+  const persistedViaApi = await request('/api/progress', {
+    headers: { Authorization: `Bearer ${aliceToken}` }
+  });
+  assert.equal(persistedViaApi.response.status, 200);
+  assert.equal(persistedViaApi.body.progress['2026-08-10'], 'completed');
+  assert.equal(persistedViaApi.body.progress['2026-08-11'], 'partial');
 
   const deleted = await request('/api/progress', json('DELETE', {}, aliceToken));
   assert.equal(deleted.response.status, 200);
   assert.equal(deleted.body.deletedCount, 3);
 
-  const afterDelete = await request('/api/progress', { headers: { Authorization: `Bearer ${aliceToken}` } });
+  const afterDelete = await request('/api/progress', {
+    headers: { Authorization: `Bearer ${aliceToken}` }
+  });
   assert.deepEqual(afterDelete.body.progress, {});
 });
