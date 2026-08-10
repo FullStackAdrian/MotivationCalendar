@@ -57,6 +57,24 @@ test('register rejects an existing username or email', async () => {
   );
 });
 
+test('register rejects non-string fields without throwing a TypeError', async () => {
+  const useCase = new RegisterUserUseCase({}, presenter);
+
+  await assert.rejects(
+    useCase.execute({ username: { trim() {} }, email: 'adrian@example.com', password: 'secret123' }),
+    { message: 'Todos los campos son requeridos' }
+  );
+});
+
+test('register rejects passwords longer than bcrypt supports', async () => {
+  const useCase = new RegisterUserUseCase({}, presenter);
+
+  await assert.rejects(
+    useCase.execute({ username: 'adrian', email: 'adrian@example.com', password: 'a'.repeat(73) }),
+    { message: 'La contraseña debe tener entre 6 y 72 caracteres' }
+  );
+});
+
 test('login rejects invalid credentials', async () => {
   const service = {
     async findByUsernameOrEmail() { return null; }
