@@ -8,7 +8,7 @@ class KanbanService {
   updateColumn(columnId, data) { return this.apiClient.request(`/api/kanban/columns/${columnId}`, { method: 'PATCH', body: JSON.stringify(data) }); }
   reorderColumn(boardId, columnId, position) { return this.apiClient.request(`/api/kanban/boards/${boardId}/columns/${columnId}/position`, { method: 'PATCH', body: JSON.stringify({ position }) }); }
   createTask(boardId, data) { return this.apiClient.request(`/api/kanban/boards/${boardId}/tasks`, { method: 'POST', body: JSON.stringify(data) }); }
-  moveTask(taskId, columnId) { return this.apiClient.request(`/api/kanban/tasks/${taskId}/move`, { method: 'PATCH', body: JSON.stringify({ columnId }) }); }
+  moveTask(taskId, columnId, date = null) { return this.apiClient.request(`/api/kanban/tasks/${taskId}/move`, { method: 'PATCH', body: JSON.stringify({ columnId, ...(date ? { date } : {}) }) }); }
   completeTask(taskId, date) { return this.apiClient.request(`/api/kanban/tasks/${taskId}/complete`, { method: 'POST', body: JSON.stringify({ date }) }); }
   archive(boardId, filters = {}) { const params = new URLSearchParams(filters).toString(); return this.apiClient.request(`/api/kanban/boards/${boardId}/archive${params ? `?${params}` : ''}`); }
 }
