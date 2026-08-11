@@ -54,12 +54,12 @@ class RegisterView {
 
   show() {
     if (!this.container) return;
-    if (!this.container.innerHTML.trim()) this.render();
+    this.render();
     this.container.style.display = 'block';
   }
 
   hide() {
-    if (this.container) this.container.style.display = 'none';
+    // El contenedor es compartido con el resto de vistas; no manipularlo.
   }
 
   validateForm() {

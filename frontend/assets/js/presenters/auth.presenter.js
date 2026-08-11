@@ -34,9 +34,7 @@ class AuthPresenter {
   initialize() {
     this.setupLoginEvents();
     this.setupRegisterEvents();
-  }
-
-  /**
+  }  /**
    * Configura los eventos del formulario de login
    */
   setupLoginEvents() {
@@ -93,6 +91,7 @@ class AuthPresenter {
    */
   showLogin() {
     this.loginView.show();
+    this.setupLoginEvents();
     this.registerView.hide();
   }
 
@@ -102,6 +101,7 @@ class AuthPresenter {
   showRegister() {
     this.loginView.hide();
     this.registerView.show();
+    this.setupRegisterEvents();
   }
 
   /**

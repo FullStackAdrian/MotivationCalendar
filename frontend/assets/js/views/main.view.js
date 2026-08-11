@@ -48,10 +48,7 @@ class MainView {
   }
 
   hide() {
-    if (this.container) {
-      this.container.style.display = 'none';
-      this.container.innerHTML = '';
-    }
+    // El contenedor es compartido con el resto de vistas; no manipularlo.
   }
 
   updateStats(stats) {

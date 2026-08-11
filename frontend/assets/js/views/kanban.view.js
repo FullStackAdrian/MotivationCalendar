@@ -2,6 +2,7 @@ class KanbanView {
   constructor(container) { this.container = container; }
   show(user, boards, selectedBoard) {
     this.container.innerHTML = `<section class="kanban-shell"><header class="kanban-header"><div><button id="kanban-back" class="kanban-link">← Calendario</button><h1>Kanban</h1><p>Organiza el trabajo sin perder de vista el día.</p></div><div class="kanban-actions"><select id="board-select" aria-label="Pizarra"></select><button id="new-board" class="kanban-primary">+ Pizarra</button><button id="new-column" class="kanban-secondary">+ Estado</button><button id="new-task" class="kanban-primary">+ Tarea</button><button id="show-archive" class="kanban-secondary">📦 Archivo</button></div></header><div id="kanban-board" class="kanban-board"></div><div id="kanban-modal" class="kanban-modal hidden"></div></section>`;
+    this.container.style.display = 'block';
     this.renderBoards(boards, selectedBoard);
   }
   renderBoards(boards, selected) { const select = document.getElementById('board-select'); if (!select) return; select.innerHTML = boards.map(board => `<option value="${this.escape(board.id)}">${this.escape(board.name)}</option>`).join(''); if (selected) select.value = selected.id; }
