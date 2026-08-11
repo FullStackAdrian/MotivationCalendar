@@ -1,0 +1,6 @@
+const test=require('node:test');const assert=require('node:assert/strict');const express=require('express');const request=require('node:http');const authRoutes=require('../backend/routes/auth');
+function start(){const app=express();app.use(express.json());app.use('/auth',authRoutes);return new Promise(resolve=>{const s=app.listen(0,()=>resolve(s));});}
+
+test('authentication router exposes register and login endpoints',async()=>{const s=await start();const port=s.address().port;const r=await fetch(`http://127.0.0.1:${port}/auth/register`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({username:'x',email:'bad',password:'x'})});assert.ok([400,409,500].includes(r.status));const l=await fetch(`http://127.0.0.1:${port}/auth/login`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({identifier:'missing',password:'x'})});assert.equal(l.status,401);await new Promise(resolve=>s.close(resolve));});
+
+test('authentication router returns 404 for unrelated methods',async()=>{const s=await start();const r=await fetch(`http://127.0.0.1:${s.address().port}/auth/unknown`);assert.equal(r.status,404);await new Promise(resolve=>s.close(resolve));});
