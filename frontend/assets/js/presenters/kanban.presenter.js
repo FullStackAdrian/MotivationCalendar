@@ -9,36 +9,25 @@ class KanbanPresenter {
   bindNavigation() {
     this.view.onBack(() => this.onBackCallback?.());
     this.view.onBoardChange(async boardId => { this.board = await this.service.getBoard(boardId); this.members = await this.service.getMembers(boardId); this.render(); });
-    this.view.onNewBoard(() => {
-      this.view.showBoardForm(); this.view.onModalClose();
-      this.view.onModalSubmit('#board-form', async data => {
-        try { this.board = await this.service.createBoard({ name: data.get('name'), description: data.get('description') || null }); this.boards = await this.service.listBoards(); this.members = await this.service.getMembers(this.board.id); this.view.closeModal(); this.view.show(this.user, this.boards, this.board); this.bindNavigation(); this.render(); }
-        catch (error) { alert(error.message); }
-      });
-    });
+    this.view.onNewBoard(() => { this.view.showBoardForm(); this.view.onModalClose(); this.view.onModalSubmit('#board-form', async data => { try { this.board = await this.service.createBoard({ name: data.get('name'), description: data.get('description') || null }); this.boards = await this.service.listBoards(); this.members = await this.service.getMembers(this.board.id); this.view.closeModal(); this.view.show(this.user, this.boards, this.board); this.bindNavigation(); this.render(); } catch (error) { alert(error.message); } }); });
+    this.view.onNewColumn(() => { this.view.showColumnForm(); this.view.onModalClose(); this.view.onModalSubmit('#column-form', async data => { try { await this.service.createColumn(this.board.id, { name: data.get('name'), color: data.get('color'), isDone: data.get('isDone') === 'on', isPaused: data.get('isPaused') === 'on', wipLimit: data.get('wipLimit') ? Number(data.get('wipLimit')) : null }); this.view.closeModal(); await this.reload(); } catch (error) { alert(error.message); } }); });
     this.view.onNewTask(() => {
       this.view.showTaskForm(this.board.columns || [], this.members); this.view.onModalClose();
       this.view.onModalSubmit('#task-form', async data => {
         const type = data.get('recurrenceType'); const days = [...document.querySelectorAll('#weekday-picker input:checked')].map(input => Number(input.value));
-        try {
-          await this.service.createTask(this.board.id, { title: data.get('title'), columnId: data.get('columnId'), assigneeId: data.get('assigneeId') || null, priority: data.get('priority'), effortPoints: data.get('effortPoints') ? Number(data.get('effortPoints')) : null, estimatedMinutes: data.get('estimatedMinutes') ? Number(data.get('estimatedMinutes')) : null, dueDate: data.get('dueDate') || null, dueTime: data.get('dueTime') || null, tags: String(data.get('tags') || '').split(',').map(tag => tag.trim()).filter(Boolean), recurrence: type === 'weekly' ? { type, days } : { type: 'none', days: [] } });
-          this.view.closeModal(); await this.reload();
-        } catch (error) { alert(error.message); }
+        try { await this.service.createTask(this.board.id, { title: data.get('title'), columnId: data.get('columnId'), assigneeId: data.get('assigneeId') || null, priority: data.get('priority'), effortPoints: data.get('effortPoints') ? Number(data.get('effortPoints')) : null, estimatedMinutes: data.get('estimatedMinutes') ? Number(data.get('estimatedMinutes')) : null, dueDate: data.get('dueDate') || null, dueTime: data.get('dueTime') || null, tags: String(data.get('tags') || '').split(',').map(tag => tag.trim()).filter(Boolean), recurrence: type === 'weekly' ? { type, days } : { type: 'none', days: [] } }); this.view.closeModal(); await this.reload(); }
+        catch (error) { alert(error.message); }
       });
     });
     this.view.onArchive(async () => { const tasks = await this.service.archive(this.board.id); this.view.showArchive(tasks); this.view.onModalClose(); });
   }
   render() {
-    const today = new Date().toISOString().slice(0, 10);
-    const activeTasks = (this.board.tasks || []).map(task => {
-      if (task.recurrence?.type !== 'weekly') return task;
-      const occurrence = (task.occurrences || []).find(item => item.date === today && item.status !== 'done');
-      return occurrence ? { ...task, columnId: occurrence.columnId } : task;
+    const today = new Date().toISOString().slice(0, 10); const activeTasks = (this.board.tasks || []).map(task => { if (task.recurrence?.type !== 'weekly') return task; const occurrence = (task.occurrences || []).find(item => item.date === today && item.status !== 'done'); return occurrence ? { ...task, columnId: occurrence.columnId } : task; });
+    this.view.renderBoard({ ...this.board, tasks: activeTasks }, async (taskId, columnId) => { try { const target = this.board.columns.find(column => column.id === columnId); if (target?.isDone) await this.service.completeTask(taskId, today); else await this.service.moveTask(taskId, columnId); await this.reload(); } catch (error) { alert(error.message); } }, () => {}, async (sourceId, targetId) => {
+      if (sourceId === targetId) return;
+      const columns = [...this.board.columns].sort((a, b) => a.position - b.position); const targetIndex = columns.findIndex(column => column.id === targetId); if (targetIndex < 0) return;
+      try { await this.service.reorderColumn(this.board.id, sourceId, targetIndex); await this.reload(); } catch (error) { alert(error.message); }
     });
-    this.view.renderBoard({ ...this.board, tasks: activeTasks }, async (taskId, columnId) => {
-      try { const target = this.board.columns.find(column => column.id === columnId); if (target?.isDone) await this.service.completeTask(taskId, today); else await this.service.moveTask(taskId, columnId); await this.reload(); }
-      catch (error) { alert(error.message); }
-    }, () => {});
   }
   async reload() { this.board = await this.service.getBoard(this.board.id); this.render(); }
   setOnBack(callback) { this.onBackCallback = callback; }
