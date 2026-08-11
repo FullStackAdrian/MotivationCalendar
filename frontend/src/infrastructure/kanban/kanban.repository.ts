@@ -6,12 +6,12 @@ export interface Board { id: string; name: string; description?: string; columns
 export interface BoardMember { id: string; username: string; email: string; }
 
 export class KanbanRepository {
-  listBoards() { return apiClient.get<{ boards: Board[] }>('/api/kanban/boards'); }
+  listBoards() { return apiClient.get<Board[]>('/api/kanban/boards'); }
   getBoard(id: string) { return apiClient.get<Board>(`/api/kanban/boards/${id}`); }
-  getMembers(id: string) { return apiClient.get<{ members: BoardMember[] }>(`/api/kanban/boards/${id}/members`); }
+  getMembers(id: string) { return apiClient.get<BoardMember[]>(`/api/kanban/boards/${id}/members`); }
   createBoard(data: { name: string; description?: string }) { return apiClient.post<Board>('/api/kanban/boards', data); }
   createColumn(boardId: string, data: Partial<BoardColumn>) { return apiClient.post<BoardColumn>(`/api/kanban/boards/${boardId}/columns`, data); }
   createTask(boardId: string, data: Record<string, unknown>) { return apiClient.post<Task>(`/api/kanban/boards/${boardId}/tasks`, data); }
   moveTask(taskId: string, columnId: string, date?: string) { return apiClient.patch<Task>(`/api/kanban/tasks/${taskId}/move`, { columnId, ...(date ? { date } : {}) }); }
-  archive(boardId: string) { return apiClient.get<{ tasks: Task[] }>(`/api/kanban/boards/${boardId}/archive`); }
+  archive(boardId: string) { return apiClient.get<Task[]>(`/api/kanban/boards/${boardId}/archive`); }
 }
