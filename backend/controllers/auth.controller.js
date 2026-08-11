@@ -21,9 +21,9 @@ class AuthController {
         : {};
       const { username, email, password } = body;
       const result = await this.registerUseCase.execute({ username, email, password });
-      res.status(201).json(result);
+      return res.status(201).json(result);
     } catch (error) {
-      this._handleError(error, res);
+      return this._handleError(error, res);
     }
   }
 
@@ -34,37 +34,36 @@ class AuthController {
         : {};
       const { identifier, password } = body;
       const result = await this.loginUseCase.execute({ identifier, password });
-      res.json(result);
+      return res.json(result);
     } catch (error) {
-      this._handleError(error, res);
+      return this._handleError(error, res);
     }
+  }
+
+  mapErrorToStatus(message) {
+    const errorMap = {
+      'Credenciales inválidas': 401,
+      'El usuario o email ya está registrado': 409,
+      'Todos los campos son requeridos': 400,
+      'El email es inválido': 400,
+      'La contraseña debe tener entre 6 y 72 caracteres': 400,
+      'El nombre de usuario debe tener entre 3 y 50 caracteres': 400,
+      'El email no puede superar 255 caracteres': 400,
+      'El identificador es inválido': 400,
+      'La contraseña es requerida': 400
+    };
+
+    return errorMap[message] || 500;
   }
 
   _handleError(error, res) {
     console.error('Error en AuthController:', error);
+    const statusCode = this.mapErrorToStatus(error.message);
 
-    if (error.message === 'Credenciales inválidas') {
-      return res.status(401).json({ error: error.message });
-    }
-
-    if (error.message.includes('ya está registrado')) {
-      return res.status(409).json({ error: error.message });
-    }
-
-    if (
-      error.message.includes('requerido') ||
-      error.message.includes('requeridos') ||
-      error.message.includes('inválido') ||
-      error.message.includes('debe tener') ||
-      error.message.includes('no puede superar')
-    ) {
-      return res.status(400).json({ error: error.message });
-    }
-
-    return res.status(500).json({
-      error: process.env.NODE_ENV === 'development'
-        ? error.message
-        : 'Error interno del servidor'
+    return res.status(statusCode).json({
+      error: statusCode === 500 && process.env.NODE_ENV !== 'development'
+        ? 'Error interno del servidor'
+        : error.message
     });
   }
 }
