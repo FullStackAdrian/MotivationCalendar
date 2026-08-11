@@ -33,38 +33,28 @@ jobs:
           --health-interval=5s
           --health-timeout=5s
           --health-retries=10
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
-
       - name: Install dependencies
         run: npm ci
-
       - name: Lint and syntax checks
         run: npm run lint
-
       - name: Repository security configuration checks
         run: node scripts/security-check.js
-
       - name: Unit tests
         run: npm test
-
       - name: Integration tests
         run: npm run test:integration
-
       - name: Frontend smoke tests
         run: npm run test:frontend
-
       - name: Coverage
         run: npm run test:coverage
-
       - name: Upload coverage artifact
         if: always()
         uses: actions/upload-artifact@v4
@@ -74,6 +64,27 @@ jobs:
             coverage/
             coverage.txt
           if-no-files-found: warn
-
       - name: Security audit
         run: npm audit --audit-level=high
+
+  frontend-expo:
+    name: Expo / Metro frontend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install Expo dependencies
+        run: npm install --no-audit --no-fund
+      - name: Typecheck
+        run: npm run typecheck
+      - name: TDD unit and component tests
+        run: npm test
+      - name: Metro web export
+        run: npm run export:web
