@@ -6,9 +6,9 @@
   "scripts": {
     "start": "node backend/server.js",
     "dev": "node backend/server.js",
-    "test": "node --test test/*.test.js test/integration/*.test.js",
-    "test:integration": "node --test test/integration/api.test.js",
-    "test:coverage": "node --test --experimental-test-coverage --test-coverage-include=backend/** --test-coverage-exclude=test/** --test-coverage-lines=80 --test-coverage-functions=80 test/*.test.js test/integration/*.test.js > coverage.txt 2>&1; test_status=$?; mkdir -p coverage; cp coverage.txt coverage/test-coverage.txt; exit $test_status",
+    "test": "node --test --test-concurrency=1 test/*.test.js test/integration/*.test.js",
+    "test:integration": "node --test --test-concurrency=1 test/integration/*.test.js",
+    "test:coverage": "node --test --test-concurrency=1 --experimental-test-coverage --test-coverage-include=backend/** --test-coverage-exclude=test/** --test-coverage-lines=80 --test-coverage-functions=80 test/*.test.js test/integration/*.test.js > coverage.txt 2>&1; test_status=$?; mkdir -p coverage; cp coverage.txt coverage/test-coverage.txt; exit $test_status",
     "lint": "node scripts/check-js-syntax.js",
     "test:frontend": "node scripts/frontend-smoke.js",
     "test:watch": "node --test --watch",
