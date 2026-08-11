@@ -52,7 +52,8 @@ class AuthController {
     }
 
     if (
-      error.message.includes('requerid') ||
+      error.message.includes('requerido') ||
+      error.message.includes('requeridos') ||
       error.message.includes('inválido') ||
       error.message.includes('debe tener') ||
       error.message.includes('no puede superar')

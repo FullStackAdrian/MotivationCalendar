@@ -54,7 +54,8 @@ test('AuthController maps domain errors to HTTP responses', async () => {
     ['El nombre de usuario debe tener entre 3 y 50 caracteres', 400],
     ['El email no puede superar 255 caracteres', 400],
     ['El identificador es inválido', 400],
-    ['La contraseña es requerida', 400]
+    ['La contraseña es requerida', 400],
+    ['unexpected database error', 500]
   ];
   for (const [message, expectedStatus] of errors) {
     const controller = new AuthController({ async execute() { throw new Error(message); } }, { async execute() { throw new Error(message); } });
