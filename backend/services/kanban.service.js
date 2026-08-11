@@ -41,7 +41,7 @@ class KanbanService {
     return Board.findByPk(boardId, {
       include: [
         { model: BoardColumn, as: 'columns' },
-        { model: Task, as: 'tasks', include: [
+        { model: Task, as: 'tasks', where: { archivedAt: null }, required: false, include: [
           { model: User, as: 'assignee', attributes: ['id', 'username', 'email'] },
           { model: TaskOccurrence, as: 'occurrences' }
         ] }
