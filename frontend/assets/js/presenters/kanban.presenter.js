@@ -1,23 +1,23 @@
 class KanbanPresenter {
-  constructor(view, service, authService) { this.view = view; this.service = service; this.authService = authService; this.user = null; this.boards = []; this.board = null; this.onBackCallback = null; }
+  constructor(view, service, authService) { this.view = view; this.service = service; this.authService = authService; this.user = null; this.boards = []; this.board = null; this.members = []; this.onBackCallback = null; }
   async show(user) {
     this.user = user; this.boards = await this.service.listBoards();
     if (!this.boards.length) { this.board = await this.service.createBoard({ name: 'Mi primera pizarra' }); this.boards = [this.board]; }
-    this.board = await this.service.getBoard(this.board?.id || this.boards[0].id); this.view.show(user, this.boards, this.board); this.bindNavigation(); this.render();
+    this.board = await this.service.getBoard(this.board?.id || this.boards[0].id); this.members = await this.service.getMembers(this.board.id); this.view.show(user, this.boards, this.board); this.bindNavigation(); this.render();
   }
   hide() { this.view.closeModal(); }
   bindNavigation() {
     this.view.onBack(() => this.onBackCallback?.());
-    this.view.onBoardChange(async boardId => { this.board = await this.service.getBoard(boardId); this.render(); });
+    this.view.onBoardChange(async boardId => { this.board = await this.service.getBoard(boardId); this.members = await this.service.getMembers(boardId); this.render(); });
     this.view.onNewBoard(() => {
       this.view.showBoardForm(); this.view.onModalClose();
       this.view.onModalSubmit('#board-form', async data => {
-        try { this.board = await this.service.createBoard({ name: data.get('name'), description: data.get('description') || null }); this.boards = await this.service.listBoards(); this.view.closeModal(); this.view.show(this.user, this.boards, this.board); this.bindNavigation(); this.render(); }
+        try { this.board = await this.service.createBoard({ name: data.get('name'), description: data.get('description') || null }); this.boards = await this.service.listBoards(); this.members = await this.service.getMembers(this.board.id); this.view.closeModal(); this.view.show(this.user, this.boards, this.board); this.bindNavigation(); this.render(); }
         catch (error) { alert(error.message); }
       });
     });
     this.view.onNewTask(() => {
-      this.view.showTaskForm(this.board.columns || [], []); this.view.onModalClose();
+      this.view.showTaskForm(this.board.columns || [], this.members); this.view.onModalClose();
       this.view.onModalSubmit('#task-form', async data => {
         const type = data.get('recurrenceType'); const days = [...document.querySelectorAll('#weekday-picker input:checked')].map(input => Number(input.value));
         try {
@@ -36,12 +36,8 @@ class KanbanPresenter {
       return occurrence ? { ...task, columnId: occurrence.columnId } : task;
     });
     this.view.renderBoard({ ...this.board, tasks: activeTasks }, async (taskId, columnId) => {
-      try {
-        const target = this.board.columns.find(column => column.id === columnId);
-        if (target?.isDone) await this.service.completeTask(taskId, today);
-        else await this.service.moveTask(taskId, columnId);
-        await this.reload();
-      } catch (error) { alert(error.message); }
+      try { const target = this.board.columns.find(column => column.id === columnId); if (target?.isDone) await this.service.completeTask(taskId, today); else await this.service.moveTask(taskId, columnId); await this.reload(); }
+      catch (error) { alert(error.message); }
     }, () => {});
   }
   async reload() { this.board = await this.service.getBoard(this.board.id); this.render(); }
