@@ -1,32 +1,7 @@
-const test = require('node:test');
-const assert = require('node:assert/strict');
+const test=require('node:test');const assert=require('node:assert/strict');const {spawnSync}=require('node:child_process');
+function load(env){const code=`process.env.NODE_ENV=${JSON.stringify(env.NODE_ENV||'test')};process.env.JWT_SECRET=${JSON.stringify(env.JWT_SECRET||'')};${env.PORT?`process.env.PORT=${JSON.stringify(env.PORT)};`:''}${env.JWT_EXPIRES_IN?`process.env.JWT_EXPIRES_IN=${JSON.stringify(env.JWT_EXPIRES_IN)};`:''}${env.ALLOWED_ORIGINS?`process.env.ALLOWED_ORIGINS=${JSON.stringify(env.ALLOWED_ORIGINS)};`:''}try{console.log(JSON.stringify(require('./backend/config/config')))}catch(e){console.error(e.message);process.exit(2)}`;const r=spawnSync(process.execPath,['-e',code],{cwd:process.cwd(),encoding:'utf8'});return r;}
 
-function load(env) {
-  const keys = ['JWT_SECRET', 'NODE_ENV', 'PORT', 'JWT_EXPIRES_IN', 'ALLOWED_ORIGINS'];
-  for (const key of keys) delete process.env[key];
-  Object.assign(process.env, env);
-  delete require.cache[require.resolve('../backend/config/config')];
-  return require('../backend/config/config');
-}
-
-test('config uses safe defaults', () => {
-  const config = load({ JWT_SECRET: 'test-secret', NODE_ENV: 'test' });
-  assert.equal(config.port, 3000);
-  assert.equal(config.jwtExpiresIn, '30d');
-  assert.deepEqual(config.allowedOrigins, ['http://localhost:3000', 'http://127.0.0.1:3000']);
-});
-
-test('config parses origins, port and expiration', () => {
-  const config = load({ JWT_SECRET: 'secret', NODE_ENV: 'test', PORT: '4321', JWT_EXPIRES_IN: '2h', ALLOWED_ORIGINS: ' https://a.test, ,https://b.test ' });
-  assert.equal(config.port, 4321);
-  assert.equal(config.jwtExpiresIn, '2h');
-  assert.deepEqual(config.allowedOrigins, ['https://a.test', 'https://b.test']);
-});
-
-test('config rejects missing JWT secret', () => {
-  assert.throws(() => load({ NODE_ENV: 'test' }), /JWT_SECRET no está configurado/);
-});
-
-test('config rejects short production JWT secrets', () => {
-  assert.throws(() => load({ NODE_ENV: 'production', JWT_SECRET: 'short' }), /al menos 32 caracteres/);
-});
+test('config uses safe defaults',()=>{const r=load({JWT_SECRET:'test-secret',NODE_ENV:'test'});assert.equal(r.status,0);const c=JSON.parse(r.stdout);assert.equal(c.port,3000);assert.equal(c.jwtExpiresIn,'30d');assert.deepEqual(c.allowedOrigins,['http://localhost:3000','http://127.0.0.1:3000']);});
+test('config parses origins, port and expiration',()=>{const r=load({JWT_SECRET:'secret',NODE_ENV:'test',PORT:'4321',JWT_EXPIRES_IN:'2h',ALLOWED_ORIGINS:' https://a.test, ,https://b.test '});assert.equal(r.status,0);const c=JSON.parse(r.stdout);assert.equal(c.port,4321);assert.equal(c.jwtExpiresIn,'2h');assert.deepEqual(c.allowedOrigins,['https://a.test','https://b.test']);});
+test('config rejects missing JWT secret',()=>{const r=load({NODE_ENV:'test'});assert.equal(r.status,2);assert.match(r.stderr,/JWT_SECRET no está configurado/);});
+test('config rejects short production JWT secrets',()=>{const r=load({NODE_ENV:'production',JWT_SECRET:'short'});assert.equal(r.status,2);assert.match(r.stderr,/al menos 32 caracteres/);});
