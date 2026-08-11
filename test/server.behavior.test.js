@@ -1,0 +1,7 @@
+const test=require('node:test');const assert=require('node:assert/strict');process.env.JWT_SECRET='test-secret';process.env.NODE_ENV='test';process.env.ALLOWED_ORIGINS='http://localhost:3000';const app=require('../backend/server');
+
+test('server applies security headers and serves frontend fallback',async()=>{const server=app.listen(0);const base=`http://127.0.0.1:${server.address().port}`;const r=await fetch(base+'/some-client-route');assert.equal(r.status,200);assert.equal(r.headers.get('x-content-type-options'),'nosniff');assert.equal(r.headers.get('x-frame-options'),'DENY');assert.equal(r.headers.get('referrer-policy'),'strict-origin-when-cross-origin');assert.match(await r.text(),/<title>2026/);await new Promise(resolve=>server.close(resolve));});
+
+test('server rejects disallowed CORS origins',async()=>{const server=app.listen(0);const r=await fetch(`http://127.0.0.1:${server.address().port}/api/health`,{headers:{Origin:'https://evil.example'}});assert.equal(r.status,403);assert.match(await r.text(),/Origen no permitido|No permitido por CORS/);await new Promise(resolve=>server.close(resolve));});
+
+test('server accepts allowed CORS origins',async()=>{const server=app.listen(0);const r=await fetch(`http://127.0.0.1:${server.address().port}/some-route`,{headers:{Origin:'http://localhost:3000'}});assert.equal(r.status,200);assert.equal(r.headers.get('access-control-allow-origin'),'http://localhost:3000');await new Promise(resolve=>server.close(resolve));});
