@@ -12,6 +12,8 @@ class KanbanService {
 
   async createBoard(userId, data) {
     const value = createBoard({ ...data, ownerId: userId });
+    delete value.id;
+    delete value.columns;
     const board = await Board.create(value);
     await BoardMember.create({ boardId: board.id, userId, role: 'owner' });
     const defaults = [
@@ -38,13 +40,12 @@ class KanbanService {
     await this.synchronizeBoard(boardId, today);
     return Board.findByPk(boardId, {
       include: [
-        { model: BoardColumn, as: 'columns', order: [['position', 'ASC']] },
+        { model: BoardColumn, as: 'columns' },
         { model: Task, as: 'tasks', include: [
           { model: User, as: 'assignee', attributes: ['id', 'username', 'email'] },
           { model: TaskOccurrence, as: 'occurrences' }
         ] }
-      ],
-      order: [[{ model: BoardColumn, as: 'columns' }, 'position', 'ASC']]
+      ]
     });
   }
 
@@ -53,13 +54,16 @@ class KanbanService {
     if (!board) throw new Error('No autorizado');
     const user = await User.findByPk(userId);
     if (!user) throw new Error('Usuario no encontrado');
-    return BoardMember.findOrCreate({ where: { boardId, userId }, defaults: { role: 'member' } }).then(([member]) => member);
+    const [member] = await BoardMember.findOrCreate({ where: { boardId, userId }, defaults: { role: 'member' } });
+    return member;
   }
 
   async createColumn(boardId, userId, data) {
     if (!(await this.isMember(boardId, userId))) throw new Error('No autorizado');
     const count = await BoardColumn.count({ where: { boardId } });
-    return BoardColumn.create(createColumn({ ...data, boardId, position: data.position ?? count }));
+    const value = createColumn({ ...data, boardId, position: data.position ?? count });
+    delete value.id;
+    return BoardColumn.create(value);
   }
 
   async reorderColumn(boardId, userId, columnId, targetPosition) {
@@ -86,7 +90,9 @@ class KanbanService {
     const column = await BoardColumn.findOne({ where: { id: data.columnId, boardId } });
     if (!column) throw new Error('Estado no encontrado');
     const recurrence = validateRecurrence(data.recurrence);
-    const task = await Task.create(createTask({ ...data, boardId, recurrence }));
+    const value = createTask({ ...data, boardId, recurrence });
+    delete value.id;
+    const task = await Task.create(value);
     const firstDate = data.dueDate || this.nextScheduledDate(recurrence, new Date().toISOString().slice(0, 10));
     if (firstDate) await TaskOccurrence.create({ taskId: task.id, date: firstDate, status: 'todo', columnId: column.id });
     return task;
@@ -116,16 +122,17 @@ class KanbanService {
   }
 
   async completeTask(taskId, userId, today = new Date().toISOString().slice(0, 10)) {
-    const task = await Task.findByPk(taskId, { include: [{ model: TaskOccurrence, as: 'occurrences' }] });
+    const task = await Task.findByPk(taskId);
     if (!task || !(await this.isMember(task.boardId, userId))) throw new Error('No autorizado');
     const doneColumn = await BoardColumn.findOne({ where: { boardId: task.boardId, isDone: true }, order: [['position', 'DESC']] });
     if (!doneColumn) throw new Error('La pizarra no tiene estado Done');
+    const previousColumnId = task.columnId;
     task.columnId = doneColumn.id;
     task.completedAt = new Date();
     await task.save();
     if (task.recurrence.type === 'weekly') {
       const nextDate = getNextOccurrenceDate(today, task.recurrence.days);
-      await TaskOccurrence.findOrCreate({ where: { taskId: task.id, date: nextDate }, defaults: { status: 'todo', columnId: task.columnId } });
+      await TaskOccurrence.findOrCreate({ where: { taskId: task.id, date: nextDate }, defaults: { status: 'todo', columnId: previousColumnId } });
     }
     return task;
   }
@@ -136,7 +143,11 @@ class KanbanService {
       if (task.recurrence.type === 'weekly') {
         const nextDate = this.nextScheduledDate(task.recurrence, today);
         if (nextDate) {
-          await TaskOccurrence.findOrCreate({ where: { taskId: task.id, date: nextDate }, defaults: { status: 'todo', columnId: task.columnId } });
+          const existing = await TaskOccurrence.findOne({ where: { taskId: task.id, date: nextDate } });
+          if (!existing) {
+            const firstTodo = await TaskOccurrence.findOne({ where: { taskId: task.id, status: 'todo' }, order: [['date', 'ASC']] });
+            await TaskOccurrence.create({ taskId: task.id, date: nextDate, status: 'todo', columnId: firstTodo?.columnId || task.columnId });
+          }
         }
         continue;
       }
