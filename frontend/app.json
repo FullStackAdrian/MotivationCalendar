@@ -1,0 +1,15 @@
+{
+  "expo": {
+    "name": "Motivation Calendar",
+    "slug": "motivation-calendar",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "motivationcalendar",
+    "userInterfaceStyle": "light",
+    "plugins": ["expo-router", "expo-secure-store"],
+    "experiments": { "typedRoutes": true },
+    "web": { "bundler": "metro", "output": "static" },
+    "android": { "package": "com.fullstackadrian.motivationcalendar" },
+    "ios": { "bundleIdentifier": "com.fullstackadrian.motivationcalendar" }
+  }
+}
