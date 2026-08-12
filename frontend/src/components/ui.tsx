@@ -10,12 +10,12 @@ export function PrimaryButton({ title, onPress, disabled = false }: { title: str
   return <Pressable disabled={disabled} onPress={onPress} style={[styles.button, disabled && styles.disabled]}><Text style={styles.buttonText}>{title}</Text></Pressable>;
 }
 
-export function SecondaryButton({ title, onPress }: { title: string; onPress: () => void }) {
-  return <Pressable onPress={onPress} style={styles.secondary}><Text style={styles.secondaryText}>{title}</Text></Pressable>;
+export function SecondaryButton({ title, onPress, disabled = false }: { title: string; onPress: () => void; disabled?: boolean }) {
+  return <Pressable disabled={disabled} onPress={onPress} style={[styles.secondary, disabled && styles.disabled]}><Text style={styles.secondaryText}>{title}</Text></Pressable>;
 }
 
 export function Field({ label, ...props }: TextInputProps & { label: string }) {
-  return <View style={styles.field}><Text style={styles.label}>{label}</Text><TextInput {...props} placeholderTextColor={theme.colors.inkMid} style={styles.input} /></View>;
+  return <View style={styles.field}><Text style={styles.label}>{label}</Text><TextInput {...props} placeholderTextColor={theme.colors.inkMid} style={[styles.input, props.multiline && styles.multiline]} /></View>;
 }
 
 export function Badge({ label, backgroundColor = theme.colors.surface }: { label: string; backgroundColor?: string }) {
@@ -33,9 +33,10 @@ const styles = StyleSheet.create({
   disabled: { opacity: 0.55 },
   secondary: { borderWidth: 1, borderColor: theme.colors.inkFaint, borderRadius: theme.radius.sm, minHeight: 44, alignItems: 'center', justifyContent: 'center', paddingHorizontal: theme.spacing.md },
   secondaryText: { color: theme.colors.inkMid, fontSize: theme.typography.small },
-  field: { gap: 6 },
+  field: { gap: 6, minWidth: 0, flex: 1 },
   label: { color: theme.colors.inkMid, fontSize: 13, letterSpacing: 0.6 },
   input: { backgroundColor: theme.colors.white, borderWidth: 1, borderColor: theme.colors.inkFaint, borderRadius: theme.radius.sm, minHeight: 46, paddingHorizontal: 14, color: theme.colors.ink, fontSize: theme.typography.body },
+  multiline: { minHeight: 80, paddingTop: 10, textAlignVertical: 'top' },
   badge: { borderRadius: theme.radius.pill, paddingHorizontal: 8, paddingVertical: 4 },
   badgeText: { color: theme.colors.ink, fontSize: 11, fontWeight: '500' },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: theme.spacing.xl, gap: theme.spacing.md },

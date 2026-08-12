@@ -29,7 +29,7 @@ services:
       PORT: 3000
       DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-motivation_calendar}
       JWT_SECRET: ${JWT_SECRET:-local-development-jwt-secret-change-me}
-      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:3000}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:3000,http://localhost:${FRONTEND_PORT:-8081}}
     ports:
       - "${APP_PORT:-3000}:3000"
     depends_on:
@@ -41,6 +41,20 @@ services:
       timeout: 5s
       retries: 10
       start_period: 10s
+    networks:
+      - motivation-calendar
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    container_name: motivation-calendar-frontend
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-8081}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
     networks:
       - motivation-calendar
 
