@@ -1,356 +1,50 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { AppHeader, Badge, Field, PrimaryButton, Screen, SecondaryButton } from '@/components/ui';
 import { useAuth } from '@/contexts/auth-context';
-import { Board, BoardColumn, BoardMember, KanbanRepository, Task } from '@/infrastructure/kanban/kanban.repository';
+import { Board, BoardMember, KanbanRepository, Task } from '@/infrastructure/kanban/kanban.repository';
 import { theme } from '@/theme';
 
 const repository = new KanbanRepository();
 const dayLabels = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
 const columnColors = ['#64748b', '#2E5E18', '#8A5A0A', '#862222', '#7c3aed', '#2563eb'];
-
 type ModalType = 'board' | 'column' | 'task' | 'archive' | null;
 
 export default function KanbanScreen() {
-  const router = useRouter();
-  const { logout } = useAuth();
-  const [boards, setBoards] = useState<Board[]>([]);
-  const [selected, setSelected] = useState<Board | null>(null);
-  const [members, setMembers] = useState<BoardMember[]>([]);
-  const [archive, setArchive] = useState<Task[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [modal, setModal] = useState<ModalType>(null);
-  const [error, setError] = useState('');
-
-  const [boardName, setBoardName] = useState('');
-  const [boardDescription, setBoardDescription] = useState('');
-  const [columnName, setColumnName] = useState('');
-  const [columnColor, setColumnColor] = useState(columnColors[0]);
-  const [columnDone, setColumnDone] = useState(false);
-  const [columnPaused, setColumnPaused] = useState(false);
-  const [columnWip, setColumnWip] = useState('');
-
-  const [taskTitle, setTaskTitle] = useState('');
-  const [taskColumn, setTaskColumn] = useState('');
-  const [taskAssignee, setTaskAssignee] = useState('');
-  const [taskPriority, setTaskPriority] = useState<'low' | 'medium' | 'high'>('medium');
-  const [taskPoints, setTaskPoints] = useState('');
-  const [taskMinutes, setTaskMinutes] = useState('');
-  const [taskDate, setTaskDate] = useState('');
-  const [taskTime, setTaskTime] = useState('');
-  const [taskRecurrence, setTaskRecurrence] = useState<'none' | 'weekly'>('none');
-  const [recurrence, setRecurrence] = useState<number[]>([]);
-  const [taskTags, setTaskTags] = useState('');
-
+  const router = useRouter(); const { logout } = useAuth();
+  const [boards, setBoards] = useState<Board[]>([]); const [selected, setSelected] = useState<Board | null>(null); const [members, setMembers] = useState<BoardMember[]>([]); const [archive, setArchive] = useState<Task[]>([]); const [loading, setLoading] = useState(true); const [modal, setModal] = useState<ModalType>(null); const [error, setError] = useState('');
+  const [boardName, setBoardName] = useState(''); const [boardDescription, setBoardDescription] = useState(''); const [columnName, setColumnName] = useState(''); const [columnColor, setColumnColor] = useState(columnColors[0]); const [columnDone, setColumnDone] = useState(false); const [columnPaused, setColumnPaused] = useState(false); const [columnWip, setColumnWip] = useState('');
+  const [taskTitle, setTaskTitle] = useState(''); const [taskColumn, setTaskColumn] = useState(''); const [taskAssignee, setTaskAssignee] = useState(''); const [taskPriority, setTaskPriority] = useState<'low' | 'medium' | 'high'>('medium'); const [taskPoints, setTaskPoints] = useState(''); const [taskMinutes, setTaskMinutes] = useState(''); const [taskDate, setTaskDate] = useState(''); const [taskTime, setTaskTime] = useState(''); const [taskRecurrence, setTaskRecurrence] = useState<'none' | 'weekly'>('none'); const [recurrence, setRecurrence] = useState<number[]>([]); const [taskTags, setTaskTags] = useState('');
   const columns = useMemo(() => [...(selected?.columns ?? [])].sort((a, b) => a.position - b.position), [selected]);
   const activeTasks = useMemo(() => (selected?.tasks ?? []).filter((task) => !task.archivedAt), [selected]);
 
-  const loadBoards = async (preferredId?: string) => {
-    setLoading(true);
-    try {
-      const next = await repository.listBoards();
-      setBoards(next);
-      const boardId = preferredId ?? selected?.id ?? next[0]?.id;
-      if (boardId) {
-        const board = await repository.getBoard(boardId);
-        setSelected(board);
-        const [nextMembers, nextArchive] = await Promise.all([
-          repository.getMembers(board.id).catch(() => [] as BoardMember[]),
-          repository.archive(board.id).catch(() => [] as Task[]),
-        ]);
-        setMembers(nextMembers);
-        setArchive(nextArchive);
-      } else {
-        setSelected(null);
-        setMembers([]);
-        setArchive([]);
-      }
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'No se pudo cargar el Kanban');
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  const loadBoards = async (preferredId?: string) => { setLoading(true); try { const next = await repository.listBoards(); setBoards(next); const boardId = preferredId ?? selected?.id ?? next[0]?.id; if (boardId) { const board = await repository.getBoard(boardId); setSelected(board); const [nextMembers, nextArchive] = await Promise.all([repository.getMembers(board.id).catch(() => [] as BoardMember[]), repository.archive(board.id).catch(() => [] as Task[])]); setMembers(nextMembers); setArchive(nextArchive); } else { setSelected(null); setMembers([]); setArchive([]); } } catch (e) { setError(e instanceof Error ? e.message : 'No se pudo cargar el Kanban'); } finally { setLoading(false); } };
   useEffect(() => { loadBoards(); }, []);
+  const selectBoard = async (id: string) => { try { setLoading(true); const board = await repository.getBoard(id); setSelected(board); const [nextMembers, nextArchive] = await Promise.all([repository.getMembers(id).catch(() => [] as BoardMember[]), repository.archive(id).catch(() => [] as Task[])]); setMembers(nextMembers); setArchive(nextArchive); } catch (e) { setError(e instanceof Error ? e.message : 'No se pudo cargar la pizarra'); } finally { setLoading(false); } };
+  const createBoard = async () => { if (!boardName.trim()) return; try { const board = await repository.createBoard({ name: boardName.trim(), description: boardDescription.trim() || undefined }); resetBoardForm(); await loadBoards(board.id); } catch (e) { setError(e instanceof Error ? e.message : 'No se pudo crear la pizarra'); } };
+  const createColumn = async () => { if (!selected || !columnName.trim()) return; try { await repository.createColumn(selected.id, { name: columnName.trim(), color: columnColor, isDone: columnDone, isPaused: columnPaused, wipLimit: columnWip ? Number(columnWip) : undefined }); resetColumnForm(); await loadBoards(selected.id); } catch (e) { setError(e instanceof Error ? e.message : 'No se pudo crear el estado'); } };
+  const createTask = async () => { if (!selected || !taskTitle.trim() || !taskColumn) return; try { await repository.createTask(selected.id, { title: taskTitle.trim(), columnId: taskColumn, priority: taskPriority, assigneeId: taskAssignee || undefined, effortPoints: taskPoints ? Number(taskPoints) : undefined, estimatedMinutes: taskMinutes ? Number(taskMinutes) : undefined, dueDate: taskDate || undefined, dueTime: taskTime || undefined, recurrence: taskRecurrence === 'weekly' && recurrence.length ? { type: 'weekly', days: recurrence } : undefined, tags: taskTags.split(',').map((tag) => tag.trim()).filter(Boolean) }); resetTaskForm(); await loadBoards(selected.id); } catch (e) { setError(e instanceof Error ? e.message : 'No se pudo crear la tarea'); } };
+  const moveTask = async (task: Task) => { if (!selected) return; const currentIndex = columns.findIndex((column) => column.id === task.columnId); const nextColumn = currentIndex >= 0 ? columns[currentIndex + 1] : undefined; if (!nextColumn) return; try { await repository.moveTask(task.id, nextColumn.id); await loadBoards(selected.id); } catch (e) { setError(e instanceof Error ? e.message : 'No se pudo mover la tarea'); } };
+  const openTaskModal = () => { if (!selected || !columns.length) return; setTaskColumn(columns[0].id); setModal('task'); };
+  const resetBoardForm = () => { setBoardName(''); setBoardDescription(''); setModal(null); }; const resetColumnForm = () => { setColumnName(''); setColumnColor(columnColors[0]); setColumnDone(false); setColumnPaused(false); setColumnWip(''); setModal(null); }; const resetTaskForm = () => { setTaskTitle(''); setTaskColumn(''); setTaskAssignee(''); setTaskPriority('medium'); setTaskPoints(''); setTaskMinutes(''); setTaskDate(''); setTaskTime(''); setTaskRecurrence('none'); setRecurrence([]); setTaskTags(''); setModal(null); };
 
-  const selectBoard = async (id: string) => {
-    try {
-      setLoading(true);
-      const board = await repository.getBoard(id);
-      setSelected(board);
-      const [nextMembers, nextArchive] = await Promise.all([
-        repository.getMembers(id).catch(() => [] as BoardMember[]),
-        repository.archive(id).catch(() => [] as Task[]),
-      ]);
-      setMembers(nextMembers);
-      setArchive(nextArchive);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'No se pudo cargar la pizarra');
-    } finally {
-      setLoading(false);
-    }
-  };
+  return <Screen style={styles.screen}><View style={styles.shell}>
+    <AppHeader title="Kanban" subtitle="Organiza el trabajo sin perder de vista el día." right={<View style={styles.headerActions}><SecondaryButton title="← Calendario" onPress={() => router.push('/calendar')} /><SecondaryButton title="Salir" onPress={() => logout().then(() => router.replace('/login'))}/></View>}/>
+    <View style={styles.toolbar}><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.toolbarContent}><View style={styles.boardPicker}><Text style={styles.boardPickerLabel}>Pizarra</Text><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.boardOptions}>{boards.map((board) => <Pressable key={board.id} onPress={() => selectBoard(board.id)} style={[styles.boardOption, selected?.id === board.id && styles.boardOptionActive]}><Text style={[styles.boardOptionText, selected?.id === board.id && styles.boardOptionTextActive]}>{board.name}</Text></Pressable>)}</ScrollView></View><SecondaryButton title="+ Pizarra" onPress={() => setModal('board')}/><SecondaryButton title="+ Estado" onPress={() => selected && setModal('column')}/><PrimaryButton title="+ Tarea" onPress={openTaskModal} disabled={!selected || !columns.length}/><SecondaryButton title="📦 Archivo" onPress={() => selected && setModal('archive')}/></ScrollView></View>
+    {error ? <Pressable onPress={() => setError('')}><Text style={styles.error}>{error}</Text></Pressable> : null}{loading && !selected ? <ActivityIndicator color={theme.colors.ink} style={styles.loader}/> : null}
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.board}>{columns.map((column) => { const columnTasks = activeTasks.filter((task) => task.columnId === column.id); return <View key={column.id} style={styles.column}><View style={styles.columnHead}><View style={[styles.statusDot,{backgroundColor:column.color || theme.colors.ink}]}/><Text style={styles.columnTitle}>{column.name}</Text><Text style={styles.count}>{columnTasks.length}</Text><Text style={styles.columnMenu}>•••</Text></View><View style={styles.cards}>{columnTasks.length ? columnTasks.map((task) => <Pressable key={task.id} onPress={() => moveTask(task)} style={({pressed}) => [styles.card, pressed && styles.cardPressed]}><Text style={styles.taskTitle}>{task.title}</Text><View style={styles.taskMeta}><Text style={[styles.priority, task.priority === 'high' && styles.priorityHigh, task.priority === 'low' && styles.priorityLow]}>{task.priority}</Text><Text style={styles.metaText}>{task.assignee ? `👤 ${task.assignee.username}` : '👤 Sin asignar'}</Text></View><View style={styles.tags}>{(task.tags ?? []).map((tag) => <Badge key={tag} label={tag}/>)}</View><View style={styles.taskFooter}>{task.effortPoints ? <Text style={styles.metaText}>⭐ {task.effortPoints}</Text> : null}{task.estimatedMinutes ? <Text style={styles.metaText}>⏱ {task.estimatedMinutes}m</Text> : null}{task.recurrence?.type === 'weekly' ? <Text style={styles.metaText}>↻ {task.recurrence.days.map((day) => dayLabels[day-1]).join(' · ')}</Text> : null}</View><View style={[styles.taskStatus,{backgroundColor:column.color || theme.colors.ink}]}><Text style={styles.taskStatusText}>{column.name}</Text></View></Pressable>) : <View style={styles.empty}><Text style={styles.emptyText}>Sin tareas</Text></View>}</View></View>; })}</ScrollView><Text style={styles.hint}>Pulsa una tarjeta para avanzar al siguiente estado.</Text>
+  </View>
 
-  const createBoard = async () => {
-    if (!boardName.trim()) return;
-    try {
-      const board = await repository.createBoard({ name: boardName.trim(), description: boardDescription.trim() || undefined });
-      resetBoardForm();
-      await loadBoards(board.id);
-    } catch (e) { setError(e instanceof Error ? e.message : 'No se pudo crear la pizarra'); }
-  };
-
-  const createColumn = async () => {
-    if (!selected || !columnName.trim()) return;
-    try {
-      await repository.createColumn(selected.id, {
-        name: columnName.trim(), color: columnColor, isDone: columnDone, isPaused: columnPaused,
-        wipLimit: columnWip ? Number(columnWip) : undefined,
-      });
-      resetColumnForm();
-      await loadBoards(selected.id);
-    } catch (e) { setError(e instanceof Error ? e.message : 'No se pudo crear el estado'); }
-  };
-
-  const createTask = async () => {
-    if (!selected || !taskTitle.trim() || !taskColumn) return;
-    try {
-      await repository.createTask(selected.id, {
-        title: taskTitle.trim(), columnId: taskColumn, priority: taskPriority,
-        assigneeId: taskAssignee || undefined,
-        effortPoints: taskPoints ? Number(taskPoints) : undefined,
-        estimatedMinutes: taskMinutes ? Number(taskMinutes) : undefined,
-        dueDate: taskDate || undefined, dueTime: taskTime || undefined,
-        recurrence: taskRecurrence === 'weekly' && recurrence.length ? { type: 'weekly', days: recurrence } : undefined,
-        tags: taskTags.split(',').map((tag) => tag.trim()).filter(Boolean),
-      });
-      resetTaskForm();
-      await loadBoards(selected.id);
-    } catch (e) { setError(e instanceof Error ? e.message : 'No se pudo crear la tarea'); }
-  };
-
-  const moveTask = async (task: Task) => {
-    if (!selected) return;
-    const currentIndex = columns.findIndex((column) => column.id === task.columnId);
-    const nextColumn = currentIndex >= 0 ? columns[currentIndex + 1] : undefined;
-    if (!nextColumn) return;
-    try {
-      await repository.moveTask(task.id, nextColumn.id);
-      await loadBoards(selected.id);
-    } catch (e) { setError(e instanceof Error ? e.message : 'No se pudo mover la tarea'); }
-  };
-
-  const openTaskModal = () => {
-    if (!selected || !columns.length) return;
-    setTaskColumn(columns[0].id);
-    setModal('task');
-  };
-
-  const resetBoardForm = () => { setBoardName(''); setBoardDescription(''); setModal(null); };
-  const resetColumnForm = () => { setColumnName(''); setColumnColor(columnColors[0]); setColumnDone(false); setColumnPaused(false); setColumnWip(''); setModal(null); };
-  const resetTaskForm = () => { setTaskTitle(''); setTaskColumn(''); setTaskAssignee(''); setTaskPriority('medium'); setTaskPoints(''); setTaskMinutes(''); setTaskDate(''); setTaskTime(''); setTaskRecurrence('none'); setRecurrence([]); setTaskTags(''); setModal(null); };
-
-  return (
-    <Screen style={styles.screen}>
-      <View style={styles.shell}>
-        <AppHeader
-          title="Kanban"
-          subtitle="Organiza el trabajo sin perder de vista el día."
-          right={
-            <View style={styles.headerActions}>
-              <SecondaryButton title="← Calendario" onPress={() => router.push('/calendar')} />
-              <SecondaryButton title="Salir" onPress={() => logout().then(() => router.replace('/login'))} />
-            </View>
-          }
-        />
-
-        <View style={styles.toolbar}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.toolbarContent}>
-            <View style={styles.boardPicker}>
-              <Text style={styles.boardPickerLabel}>Pizarra</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.boardOptions}>
-                {boards.map((board) => (
-                  <Pressable key={board.id} onPress={() => selectBoard(board.id)} style={[styles.boardOption, selected?.id === board.id && styles.boardOptionActive]}>
-                    <Text style={[styles.boardOptionText, selected?.id === board.id && styles.boardOptionTextActive]}>{board.name}</Text>
-                  </Pressable>
-                ))}
-              </ScrollView>
-            </View>
-            <SecondaryButton title="+ Pizarra" onPress={() => setModal('board')} />
-            <SecondaryButton title="+ Estado" onPress={() => setModal('column')} disabled={!selected} />
-            <PrimaryButton title="+ Tarea" onPress={openTaskModal} disabled={!selected || !columns.length} />
-            <SecondaryButton title="📦 Archivo" onPress={() => setModal('archive')} disabled={!selected} />
-          </ScrollView>
-        </View>
-
-        {error ? <Pressable onPress={() => setError('')}><Text style={styles.error}>{error}</Text></Pressable> : null}
-        {loading && !selected ? <ActivityIndicator color={theme.colors.ink} style={styles.loader} /> : null}
-
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.board}>
-          {columns.map((column) => {
-            const columnTasks = activeTasks.filter((task) => task.columnId === column.id);
-            return (
-              <View key={column.id} style={styles.column}>
-                <View style={styles.columnHead}>
-                  <View style={[styles.statusDot, { backgroundColor: column.color || theme.colors.ink }]} />
-                  <Text style={styles.columnTitle}>{column.name}</Text>
-                  <Text style={styles.count}>{columnTasks.length}</Text>
-                  <Text style={styles.columnMenu}>•••</Text>
-                </View>
-                <View style={styles.cards}>
-                  {columnTasks.length ? columnTasks.map((task) => (
-                    <Pressable key={task.id} onPress={() => moveTask(task)} style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}>
-                      <Text style={styles.taskTitle}>{task.title}</Text>
-                      <View style={styles.taskMeta}>
-                        <Text style={[styles.priority, task.priority === 'high' && styles.priorityHigh, task.priority === 'low' && styles.priorityLow]}>{task.priority}</Text>
-                        <Text style={styles.metaText}>{task.assignee ? `👤 ${task.assignee.username}` : '👤 Sin asignar'}</Text>
-                      </View>
-                      <View style={styles.tags}>
-                        {(task.tags ?? []).map((tag) => <Badge key={tag} label={tag} />)}
-                      </View>
-                      <View style={styles.taskFooter}>
-                        {task.effortPoints ? <Text style={styles.metaText}>⭐ {task.effortPoints}</Text> : null}
-                        {task.estimatedMinutes ? <Text style={styles.metaText}>⏱ {task.estimatedMinutes}m</Text> : null}
-                        {task.recurrence?.type === 'weekly' ? <Text style={styles.metaText}>↻ {task.recurrence.days.map((day) => dayLabels[day - 1]).join(' · ')}</Text> : null}
-                      </View>
-                      <View style={[styles.taskStatus, { backgroundColor: column.color || theme.colors.ink }]}><Text style={styles.taskStatusText}>{column.name}</Text></View>
-                    </Pressable>
-                  )) : <View style={styles.empty}><Text style={styles.emptyText}>Sin tareas</Text></View>}
-                </View>
-              </View>
-            );
-          })}
-        </ScrollView>
-        <Text style={styles.hint}>Pulsa una tarjeta para avanzar al siguiente estado.</Text>
-      </View>
-
-      <Modal visible={modal === 'board'} transparent animationType="fade" onRequestClose={resetBoardForm}>
-        <ModalShell title="Nueva pizarra" onClose={resetBoardForm}>
-          <Field label="Nombre" value={boardName} onChangeText={setBoardName} maxLength={120} />
-          <Field label="Descripción" value={boardDescription} onChangeText={setBoardDescription} multiline numberOfLines={3} />
-          <PrimaryButton title="Crear pizarra" onPress={createBoard} />
-        </ModalShell>
-      </Modal>
-
-      <Modal visible={modal === 'column'} transparent animationType="fade" onRequestClose={resetColumnForm}>
-        <ModalShell title="Nuevo estado" onClose={resetColumnForm}>
-          <Field label="Nombre" value={columnName} onChangeText={setColumnName} maxLength={80} />
-          <Text style={styles.formLabel}>Color</Text>
-          <View style={styles.colorPicker}>{columnColors.map((color) => <Pressable key={color} onPress={() => setColumnColor(color)} style={[styles.color, { backgroundColor: color }, columnColor === color && styles.colorSelected]} />)}</View>
-          <Toggle label="Estado de finalización" active={columnDone} onPress={() => setColumnDone((value) => !value)} />
-          <Toggle label="Estado en pausa" active={columnPaused} onPress={() => setColumnPaused((value) => !value)} />
-          <Field label="Límite WIP opcional" value={columnWip} onChangeText={setColumnWip} keyboardType="numeric" />
-          <PrimaryButton title="Crear estado" onPress={createColumn} />
-        </ModalShell>
-      </Modal>
-
-      <Modal visible={modal === 'task'} transparent animationType="slide" onRequestClose={resetTaskForm}>
-        <ModalShell title="Nueva tarea" onClose={resetTaskForm} scroll>
-          <Field label="Título" value={taskTitle} onChangeText={setTaskTitle} maxLength={180} />
-          <OptionPicker label="Estado" options={columns.map((column) => ({ value: column.id, label: column.name }))} value={taskColumn} onChange={setTaskColumn} />
-          <OptionPicker label="Asignar a" options={[{ value: '', label: 'Sin asignar' }, ...members.map((member) => ({ value: member.id, label: member.username }))]} value={taskAssignee} onChange={setTaskAssignee} />
-          <OptionPicker label="Prioridad" options={[{ value: 'low', label: 'Baja' }, { value: 'medium', label: 'Media' }, { value: 'high', label: 'Alta' }]} value={taskPriority} onChange={(value) => setTaskPriority(value as 'low' | 'medium' | 'high')} />
-          <View style={styles.formGrid}><Field label="Puntos" value={taskPoints} onChangeText={setTaskPoints} keyboardType="numeric" /><Field label="Minutos estimados" value={taskMinutes} onChangeText={setTaskMinutes} keyboardType="numeric" /></View>
-          <View style={styles.formGrid}><Field label="Fecha" value={taskDate} onChangeText={setTaskDate} placeholder="YYYY-MM-DD" /><Field label="Hora" value={taskTime} onChangeText={setTaskTime} placeholder="HH:mm" /></View>
-          <OptionPicker label="Frecuencia" options={[{ value: 'none', label: 'Sin frecuencia' }, { value: 'weekly', label: 'Semanal' }]} value={taskRecurrence} onChange={(value) => setTaskRecurrence(value as 'none' | 'weekly')} />
-          {taskRecurrence === 'weekly' ? <View><Text style={styles.formLabel}>Días</Text><View style={styles.weekdays}>{dayLabels.map((label, index) => <Pressable key={label} onPress={() => setRecurrence((days) => days.includes(index + 1) ? days.filter((day) => day !== index + 1) : [...days, index + 1])} style={[styles.weekday, recurrence.includes(index + 1) && styles.weekdayActive]}><Text style={recurrence.includes(index + 1) ? styles.weekdayActiveText : styles.weekdayText}>{label}</Text></Pressable>)}</View></View> : null}
-          <Field label="Tags" value={taskTags} onChangeText={setTaskTags} placeholder="backend, urgente" />
-          <PrimaryButton title="Crear tarea" onPress={createTask} />
-        </ModalShell>
-      </Modal>
-
-      <Modal visible={modal === 'archive'} transparent animationType="fade" onRequestClose={() => setModal(null)}>
-        <ModalShell title="Archivo" onClose={() => setModal(null)}>
-          {archive.length ? archive.map((task) => <View key={task.id} style={styles.archiveRow}><Text style={styles.archiveTitle}>{task.title}</Text><Text style={styles.archiveDate}>📦 {task.archivedAt ?? ''}</Text></View>) : <Text style={styles.emptyArchive}>No hay tareas archivadas.</Text>}
-        </ModalShell>
-      </Modal>
-    </Screen>
-  );
+  <Modal visible={modal === 'board'} transparent animationType="fade" onRequestClose={resetBoardForm}><ModalShell title="Nueva pizarra" onClose={resetBoardForm}><Field label="Nombre" value={boardName} onChangeText={setBoardName} maxLength={120}/><Field label="Descripción" value={boardDescription} onChangeText={setBoardDescription} multiline numberOfLines={3}/><PrimaryButton title="Crear pizarra" onPress={createBoard}/></ModalShell></Modal>
+  <Modal visible={modal === 'column'} transparent animationType="fade" onRequestClose={resetColumnForm}><ModalShell title="Nuevo estado" onClose={resetColumnForm}><Field label="Nombre" value={columnName} onChangeText={setColumnName} maxLength={80}/><Text style={styles.formLabel}>Color</Text><View style={styles.colorPicker}>{columnColors.map((color) => <Pressable key={color} onPress={() => setColumnColor(color)} style={[styles.color,{backgroundColor:color},columnColor === color && styles.colorSelected]}/>)}</View><Toggle label="Estado de finalización" active={columnDone} onPress={() => setColumnDone((value) => !value)}/><Toggle label="Estado en pausa" active={columnPaused} onPress={() => setColumnPaused((value) => !value)}/><Field label="Límite WIP opcional" value={columnWip} onChangeText={setColumnWip} keyboardType="numeric"/><PrimaryButton title="Crear estado" onPress={createColumn}/></ModalShell></Modal>
+  <Modal visible={modal === 'task'} transparent animationType="slide" onRequestClose={resetTaskForm}><ModalShell title="Nueva tarea" onClose={resetTaskForm} scroll><Field label="Título" value={taskTitle} onChangeText={setTaskTitle} maxLength={180}/><OptionPicker label="Estado" options={columns.map((column) => ({value:column.id,label:column.name}))} value={taskColumn} onChange={setTaskColumn}/><OptionPicker label="Asignar a" options={[{value:'',label:'Sin asignar'},...members.map((member) => ({value:member.id,label:member.username}))]} value={taskAssignee} onChange={setTaskAssignee}/><OptionPicker label="Prioridad" options={[{value:'low',label:'Baja'},{value:'medium',label:'Media'},{value:'high',label:'Alta'}]} value={taskPriority} onChange={(value) => setTaskPriority(value as 'low'|'medium'|'high')}/><View style={styles.formGrid}><Field label="Puntos" value={taskPoints} onChangeText={setTaskPoints} keyboardType="numeric"/><Field label="Minutos estimados" value={taskMinutes} onChangeText={setTaskMinutes} keyboardType="numeric"/></View><View style={styles.formGrid}><Field label="Fecha" value={taskDate} onChangeText={setTaskDate} placeholder="YYYY-MM-DD"/><Field label="Hora" value={taskTime} onChangeText={setTaskTime} placeholder="HH:mm"/></View><OptionPicker label="Frecuencia" options={[{value:'none',label:'Sin frecuencia'},{value:'weekly',label:'Semanal'}]} value={taskRecurrence} onChange={(value) => setTaskRecurrence(value as 'none'|'weekly')}/>{taskRecurrence === 'weekly' ? <View><Text style={styles.formLabel}>Días</Text><View style={styles.weekdays}>{dayLabels.map((label,index) => <Pressable key={label} onPress={() => setRecurrence((days) => days.includes(index+1) ? days.filter((day) => day !== index+1) : [...days,index+1])} style={[styles.weekday,recurrence.includes(index+1) && styles.weekdayActive]}><Text style={recurrence.includes(index+1) ? styles.weekdayActiveText : styles.weekdayText}>{label}</Text></Pressable>)}</View></View> : null}<Field label="Tags" value={taskTags} onChangeText={setTaskTags} placeholder="backend, urgente"/><PrimaryButton title="Crear tarea" onPress={createTask}/></ModalShell></Modal>
+  <Modal visible={modal === 'archive'} transparent animationType="fade" onRequestClose={() => setModal(null)}><ModalShell title="Archivo" onClose={() => setModal(null)}>{archive.length ? archive.map((task) => <View key={task.id} style={styles.archiveRow}><Text style={styles.archiveTitle}>{task.title}</Text><Text style={styles.archiveDate}>📦 {task.archivedAt ?? ''}</Text></View>) : <Text style={styles.emptyArchive}>No hay tareas archivadas.</Text>}</ModalShell></Modal>
+  </Screen>;
 }
 
-function ModalShell({ title, onClose, children, scroll = false }: { title: string; onClose: () => void; children: React.ReactNode; scroll?: boolean }) {
-  const content = <View style={styles.modal}><Pressable onPress={onClose} style={styles.close}><Text style={styles.closeText}>×</Text></Pressable><Text style={styles.modalTitle}>{title}</Text>{children}</View>;
-  return <View style={styles.overlay}>{scroll ? <ScrollView contentContainerStyle={styles.modalScroll}>{content}</ScrollView> : content}</View>;
-}
+function ModalShell({title,onClose,children,scroll=false}:{title:string;onClose:()=>void;children:React.ReactNode;scroll?:boolean}) { const content=<View style={styles.modal}><Pressable onPress={onClose} style={styles.close}><Text style={styles.closeText}>×</Text></Pressable><Text style={styles.modalTitle}>{title}</Text>{children}</View>; return <View style={styles.overlay}>{scroll ? <ScrollView contentContainerStyle={styles.modalScroll}>{content}</ScrollView> : content}</View>; }
+function Toggle({label,active,onPress}:{label:string;active:boolean;onPress:()=>void}) { return <Pressable onPress={onPress} style={styles.toggle}><View style={[styles.checkbox,active && styles.checkboxActive]}>{active ? <Text style={styles.check}>✓</Text> : null}</View><Text style={styles.toggleText}>{label}</Text></Pressable>; }
+function OptionPicker({label,options,value,onChange}:{label:string;options:{value:string;label:string}[];value:string;onChange:(value:string)=>void}) { return <View style={styles.optionGroup}><Text style={styles.formLabel}>{label}</Text><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.optionRow}>{options.map((option) => <Pressable key={option.value} onPress={() => onChange(option.value)} style={[styles.option,value === option.value && styles.optionActive]}><Text style={[styles.optionText,value === option.value && styles.optionTextActive]}>{option.label}</Text></Pressable>)}</ScrollView></View>; }
 
-function Toggle({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
-  return <Pressable onPress={onPress} style={styles.toggle}><View style={[styles.checkbox, active && styles.checkboxActive]}>{active ? <Text style={styles.check}>✓</Text> : null}</View><Text style={styles.toggleText}>{label}</Text></Pressable>;
-}
-
-function OptionPicker({ label, options, value, onChange }: { label: string; options: { value: string; label: string }[]; value: string; onChange: (value: string) => void }) {
-  return <View style={styles.optionGroup}><Text style={styles.formLabel}>{label}</Text><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.optionRow}>{options.map((option) => <Pressable key={option.value} onPress={() => onChange(option.value)} style={[styles.option, value === option.value && styles.optionActive]}><Text style={[styles.optionText, value === option.value && styles.optionTextActive]}>{option.label}</Text></Pressable>)}</ScrollView></View>;
-}
-
-const styles = StyleSheet.create({
-  screen: { paddingHorizontal: theme.spacing.lg, paddingTop: theme.spacing.xl },
-  shell: { width: '100%', maxWidth: 1400, alignSelf: 'center', flex: 1 },
-  headerActions: { flexDirection: 'row', gap: 8 },
-  toolbar: { marginBottom: theme.spacing.lg },
-  toolbarContent: { gap: 8, alignItems: 'flex-end' },
-  boardPicker: { minWidth: 260, maxWidth: 560 },
-  boardPickerLabel: { color: theme.colors.inkMid, fontSize: 11, marginBottom: 5, letterSpacing: 1, textTransform: 'uppercase' },
-  boardOptions: { gap: 6 },
-  boardOption: { borderWidth: 1, borderColor: theme.colors.inkFaint, borderRadius: 7, paddingHorizontal: 14, paddingVertical: 10, backgroundColor: theme.colors.white },
-  boardOptionActive: { backgroundColor: theme.colors.ink, borderColor: theme.colors.ink },
-  boardOptionText: { color: theme.colors.inkMid, fontSize: 14 },
-  boardOptionTextActive: { color: theme.colors.white },
-  board: { gap: 16, alignItems: 'flex-start', paddingBottom: 24, paddingRight: 16 },
-  column: { backgroundColor: 'rgba(237,233,224,0.8)', borderWidth: 1, borderColor: theme.colors.inkFaint, borderRadius: 12, minWidth: 280, width: 280, padding: 12 },
-  columnHead: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 2, paddingTop: 4, paddingBottom: 12 },
-  statusDot: { width: 10, height: 10, borderRadius: 5 },
-  columnTitle: { color: theme.colors.ink, fontWeight: '600', flex: 1 },
-  count: { color: theme.colors.inkMid, fontSize: 12 },
-  columnMenu: { color: theme.colors.inkMid, fontSize: 12, marginLeft: 2 },
-  cards: { minHeight: 80, gap: 10 },
-  empty: { paddingVertical: 24, alignItems: 'center' },
-  emptyText: { color: theme.colors.inkMid, fontSize: 13 },
-  card: { position: 'relative', backgroundColor: theme.colors.white, borderWidth: 1, borderColor: theme.colors.inkFaint, borderRadius: 10, padding: 13, shadowColor: theme.colors.ink, shadowOpacity: 0.05, shadowRadius: 7, shadowOffset: { width: 0, height: 2 }, elevation: 1 },
-  cardPressed: { opacity: 0.75, transform: [{ scale: 0.99 }] },
-  taskTitle: { color: theme.colors.ink, fontWeight: '500', lineHeight: 20, marginBottom: 10, paddingRight: 55 },
-  taskMeta: { flexDirection: 'row', gap: 8, alignItems: 'center', flexWrap: 'wrap' },
-  priority: { color: theme.colors.partial, fontSize: 11, textTransform: 'lowercase' },
-  priorityHigh: { color: theme.colors.miss },
-  priorityLow: { color: theme.colors.done },
-  metaText: { color: theme.colors.inkMid, fontSize: 11 },
-  tags: { flexDirection: 'row', gap: 4, flexWrap: 'wrap', marginVertical: 7 },
-  taskFooter: { minHeight: 20, flexDirection: 'row', gap: 8, flexWrap: 'wrap', alignItems: 'center' },
-  taskStatus: { position: 'absolute', right: 10, top: 10, borderRadius: 20, paddingHorizontal: 7, paddingVertical: 3 },
-  taskStatusText: { color: theme.colors.white, fontSize: 9 },
-  hint: { color: theme.colors.inkMid, textAlign: 'center', fontSize: 11, marginVertical: 10 },
-  loader: { marginVertical: 20 },
-  error: { backgroundColor: '#ffebee', borderWidth: 1, borderColor: theme.colors.error, color: theme.colors.error, borderRadius: 6, padding: 10, marginBottom: 12 },
-  overlay: { flex: 1, backgroundColor: 'rgba(26,24,20,0.4)', justifyContent: 'center', padding: 20, zIndex: 20 },
-  modalScroll: { flexGrow: 1, justifyContent: 'center', paddingVertical: 20 },
-  modal: { position: 'relative', backgroundColor: theme.colors.background, width: '100%', maxWidth: 520, maxHeight: '90%', alignSelf: 'center', borderRadius: 14, padding: 28, gap: 14, shadowColor: theme.colors.ink, shadowOpacity: 0.18, shadowRadius: 20, shadowOffset: { width: 0, height: 8 } },
-  close: { position: 'absolute', right: 14, top: 9, padding: 4, zIndex: 2 },
-  closeText: { color: theme.colors.ink, fontSize: 28, lineHeight: 30 },
-  modalTitle: { color: theme.colors.ink, fontFamily: 'serif', fontSize: 30, fontWeight: '400', marginBottom: 2 },
-  formLabel: { color: theme.colors.inkMid, fontSize: 13 },
-  formGrid: { flexDirection: 'row', gap: 10 },
-  formGridItem: { flex: 1 },
-  optionGroup: { gap: 6 },
-  optionRow: { gap: 6 },
-  option: { backgroundColor: theme.colors.white, borderWidth: 1, borderColor: theme.colors.inkFaint, borderRadius: 7, paddingHorizontal: 11, paddingVertical: 9 },
-  optionActive: { backgroundColor: theme.colors.ink, borderColor: theme.colors.ink },
-  optionText: { color: theme.colors.inkMid, fontSize: 12 },
-  optionTextActive: { color: theme.colors.white },
-  weekdays: { flexDirection: 'row', gap: 6 },
-  weekday: { width: 38, height: 38, borderRadius: 19, borderWidth: 1, borderColor: theme.colors.inkFaint, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.colors.white },
-  weekdayActive: { backgroundColor: theme.colors.ink },
-  weekdayText: { color: theme.colors.ink },
-  weekdayActiveText: { color: theme.colors.white },
-  colorPicker: { flexDirection: 'row', gap: 10, flexWrap: 'wrap' },
-  color: { width: 30, height: 30, borderRadius: 15 },
-  colorSelected: { borderWidth: 3, borderColor: theme.colors.ink, transform: [{ scale: 1.08 }] },
-  toggle: { flexDirection: 'row', alignItems: 'center', gap: 9 },
-  checkbox: { width: 20, height: 20, borderWidth: 1, borderColor: theme.colors.inkFaint, borderRadius: 4, backgroundColor: theme.colors.white, alignItems: 'center', justifyContent: 'center' },
-  checkboxActive: { backgroundColor: theme.colors.ink, borderColor: theme.colors.ink },
-  check: { color: theme.colors.white, fontSize: 13, fontWeight: '700' },
-  toggleText: { color: theme.colors.ink, fontSize: 13 },
-  archiveRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 12, borderBottomWidth: 1, borderBottomColor: theme.colors.inkFaint, paddingVertical: 12 },
-  archiveTitle: { color: theme.colors.ink, fontWeight: '500', flex: 1 },
-  archiveDate: { color: theme.colors.inkMid, fontSize: 11 },
-  emptyArchive: { color: theme.colors.inkMid, paddingVertical: 20, textAlign: 'center' },
-});
+const styles=StyleSheet.create({screen:{paddingHorizontal:theme.spacing.lg,paddingTop:theme.spacing.xl},shell:{width:'100%',maxWidth:1400,alignSelf:'center',flex:1},headerActions:{flexDirection:'row',gap:8},toolbar:{marginBottom:theme.spacing.lg},toolbarContent:{gap:8,alignItems:'flex-end'},boardPicker:{minWidth:260,maxWidth:560},boardPickerLabel:{color:theme.colors.inkMid,fontSize:11,marginBottom:5,letterSpacing:1,textTransform:'uppercase'},boardOptions:{gap:6},boardOption:{borderWidth:1,borderColor:theme.colors.inkFaint,borderRadius:7,paddingHorizontal:14,paddingVertical:10,backgroundColor:theme.colors.white},boardOptionActive:{backgroundColor:theme.colors.ink,borderColor:theme.colors.ink},boardOptionText:{color:theme.colors.inkMid,fontSize:14},boardOptionTextActive:{color:theme.colors.white},board:{gap:16,alignItems:'flex-start',paddingBottom:24,paddingRight:16},column:{backgroundColor:'rgba(237,233,224,0.8)',borderWidth:1,borderColor:theme.colors.inkFaint,borderRadius:12,minWidth:280,width:280,padding:12},columnHead:{flexDirection:'row',alignItems:'center',gap:8,paddingHorizontal:2,paddingTop:4,paddingBottom:12},statusDot:{width:10,height:10,borderRadius:5},columnTitle:{color:theme.colors.ink,fontWeight:'600',flex:1},count:{color:theme.colors.inkMid,fontSize:12},columnMenu:{color:theme.colors.inkMid,fontSize:12,marginLeft:2},cards:{minHeight:80,gap:10},empty:{paddingVertical:24,alignItems:'center'},emptyText:{color:theme.colors.inkMid,fontSize:13},card:{position:'relative',backgroundColor:theme.colors.white,borderWidth:1,borderColor:theme.colors.inkFaint,borderRadius:10,padding:13,shadowColor:theme.colors.ink,shadowOpacity:0.05,shadowRadius:7,shadowOffset:{width:0,height:2},elevation:1},cardPressed:{opacity:0.75,transform:[{scale:0.99}]},taskTitle:{color:theme.colors.ink,fontWeight:'500',lineHeight:20,marginBottom:10,paddingRight:55},taskMeta:{flexDirection:'row',gap:8,alignItems:'center',flexWrap:'wrap'},priority:{color:theme.colors.partial,fontSize:11},priorityHigh:{color:theme.colors.miss},priorityLow:{color:theme.colors.done},metaText:{color:theme.colors.inkMid,fontSize:11},tags:{flexDirection:'row',gap:4,flexWrap:'wrap',marginVertical:7},taskFooter:{minHeight:20,flexDirection:'row',gap:8,flexWrap:'wrap',alignItems:'center'},taskStatus:{position:'absolute',right:10,top:10,borderRadius:20,paddingHorizontal:7,paddingVertical:3},taskStatusText:{color:theme.colors.white,fontSize:9},hint:{color:theme.colors.inkMid,textAlign:'center',fontSize:11,marginVertical:10},loader:{marginVertical:20},error:{backgroundColor:'#ffebee',borderWidth:1,borderColor:theme.colors.error,color:theme.colors.error,borderRadius:6,padding:10,marginBottom:12},overlay:{flex:1,backgroundColor:'rgba(26,24,20,0.4)',justifyContent:'center',padding:20,zIndex:20},modalScroll:{flexGrow:1,justifyContent:'center',paddingVertical:20},modal:{position:'relative',backgroundColor:theme.colors.background,width:'100%',maxWidth:520,maxHeight:'90%',alignSelf:'center',borderRadius:14,padding:28,gap:14,shadowColor:theme.colors.ink,shadowOpacity:0.18,shadowRadius:20,shadowOffset:{width:0,height:8}},close:{position:'absolute',right:14,top:9,padding:4,zIndex:2},closeText:{color:theme.colors.ink,fontSize:28,lineHeight:30},modalTitle:{color:theme.colors.ink,fontFamily:'serif',fontSize:30,fontWeight:'400',marginBottom:2},formLabel:{color:theme.colors.inkMid,fontSize:13},formGrid:{flexDirection:'row',gap:10},optionGroup:{gap:6},optionRow:{gap:6},option:{backgroundColor:theme.colors.white,borderWidth:1,borderColor:theme.colors.inkFaint,borderRadius:7,paddingHorizontal:11,paddingVertical:9},optionActive:{backgroundColor:theme.colors.ink,borderColor:theme.colors.ink},optionText:{color:theme.colors.inkMid,fontSize:12},optionTextActive:{color:theme.colors.white},weekdays:{flexDirection:'row',gap:6},weekday:{width:38,height:38,borderRadius:19,borderWidth:1,borderColor:theme.colors.inkFaint,alignItems:'center',justifyContent:'center',backgroundColor:theme.colors.white},weekdayActive:{backgroundColor:theme.colors.ink},weekdayText:{color:theme.colors.ink},weekdayActiveText:{color:theme.colors.white},colorPicker:{flexDirection:'row',gap:10,flexWrap:'wrap'},color:{width:30,height:30,borderRadius:15},colorSelected:{borderWidth:3,borderColor:theme.colors.ink,transform:[{scale:1.08}]},toggle:{flexDirection:'row',alignItems:'center',gap:9},checkbox:{width:20,height:20,borderWidth:1,borderColor:theme.colors.inkFaint,borderRadius:4,backgroundColor:theme.colors.white,alignItems:'center',justifyContent:'center'},checkboxActive:{backgroundColor:theme.colors.ink,borderColor:theme.colors.ink},check:{color:theme.colors.white,fontSize:13,fontWeight:'700'},toggleText:{color:theme.colors.ink,fontSize:13},archiveRow:{flexDirection:'row',justifyContent:'space-between',gap:12,borderBottomWidth:1,borderBottomColor:theme.colors.inkFaint,paddingVertical:12},archiveTitle:{color:theme.colors.ink,fontWeight:'500',flex:1},archiveDate:{color:theme.colors.inkMid,fontSize:11},emptyArchive:{color:theme.colors.inkMid,paddingVertical:20,textAlign:'center'}});
