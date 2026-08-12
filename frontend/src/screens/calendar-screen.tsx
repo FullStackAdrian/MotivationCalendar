@@ -10,7 +10,6 @@ import { theme } from '@/theme';
 const repository = new CalendarRepository();
 const STATUS_TO_API = { done: 'completed', partial: 'partial', miss: 'failed' } as const;
 const API_TO_STATUS = { completed: 'done', partial: 'partial', failed: 'miss' } as const;
-
 type VisualState = 'past' | 'future' | 'done' | 'partial' | 'miss' | 'today';
 
 export default function CalendarScreen() {
@@ -26,8 +25,9 @@ export default function CalendarScreen() {
     ? calculateDayOfYear(today.toISOString().slice(0, 10))
     : today.getFullYear() < year ? 0 : 366;
 
-  // Keep the legacy density on desktop while making the grid genuinely usable on smaller screens.
-  const columns = width <= 480 ? 13 : width <= 768 ? 18 : 26;
+  const isMobile = width <= 480;
+  const isTablet = width > 480 && width <= 768;
+  const columns = isMobile ? 13 : isTablet ? 18 : 26;
   const days = useMemo(() => Array.from({ length: 365 }, (_, index) => index + 1), []);
   const rows = useMemo(() => {
     const result: number[][] = [];
@@ -111,8 +111,8 @@ export default function CalendarScreen() {
   };
 
   return (
-    <Screen style={styles.screen}>
-      <View style={styles.userHeader}>
+    <Screen style={[styles.screen, isTablet && styles.tabletScreen, isMobile && styles.mobileScreen]}>
+      <View style={[styles.userHeader, isMobile && styles.mobileUserHeader]}>
         <Text style={styles.userInfo}>Hola, {user?.username ?? ''}</Text>
         <View style={styles.mainNav}>
           <SecondaryButton title="📋 Kanban" onPress={() => router.push('/kanban')} />
@@ -120,25 +120,25 @@ export default function CalendarScreen() {
         </View>
       </View>
 
-      <View style={styles.hero}>
-        <Text style={styles.year}>{year}</Text>
-        <Text style={styles.tagline}>Cada día que pasa, ya no vuelve</Text>
+      <View style={[styles.hero, isTablet && styles.tabletHero, isMobile && styles.mobileHero]}>
+        <Text style={[styles.year, isTablet && styles.tabletYear, isMobile && styles.mobileYear]}>{year}</Text>
+        <Text style={[styles.tagline, isMobile && styles.mobileTagline]}>Cada día que pasa, ya no vuelve</Text>
       </View>
 
-      <View style={styles.stats}>
-        <View style={styles.stat}>
+      <View style={[styles.stats, isTablet && styles.tabletStats, isMobile && styles.mobileStats]}>
+        <View style={[styles.stat, (isMobile || isTablet) && styles.compactStat]}>
           <Text style={styles.statNumber}>{stats.done}</Text>
           <View style={styles.statLabelRow}><View style={[styles.dot, { backgroundColor: theme.colors.done }]} /><Text style={styles.statLabel}>Todo bien</Text></View>
         </View>
-        <View style={styles.stat}>
+        <View style={[styles.stat, (isMobile || isTablet) && styles.compactStat]}>
           <Text style={styles.statNumber}>{stats.partial}</Text>
           <View style={styles.statLabelRow}><View style={[styles.dot, { backgroundColor: theme.colors.partial }]} /><Text style={styles.statLabel}>A medias</Text></View>
         </View>
-        <View style={styles.stat}>
+        <View style={[styles.stat, (isMobile || isTablet) && styles.compactStat]}>
           <Text style={styles.statNumber}>{stats.miss}</Text>
           <View style={styles.statLabelRow}><View style={[styles.dot, { backgroundColor: theme.colors.miss }]} /><Text style={styles.statLabel}>Sin cumplir</Text></View>
         </View>
-        <View style={styles.statLast}>
+        <View style={[styles.statLast, (isMobile || isTablet) && styles.compactStatLast]}>
           <Text style={styles.statNumber}>{stats.left}</Text>
           <Text style={styles.statLabel}>Días restantes</Text>
         </View>
@@ -162,7 +162,7 @@ export default function CalendarScreen() {
         )}
       />
 
-      <View style={styles.legend}>
+      <View style={[styles.legend, isMobile && styles.mobileLegend]}>
         {[
           ['past', 'Pasado sin marcar'],
           ['future', 'Por venir'],
@@ -177,70 +177,34 @@ export default function CalendarScreen() {
         ))}
       </View>
 
-      <Text style={styles.footer}>365 oportunidades {'\u00a0·\u00a0'} Aprovéchalas</Text>
+      <Text style={[styles.footer, isMobile && styles.mobileFooter]}>365 oportunidades {'\u00a0·\u00a0'} Aprovéchalas</Text>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    paddingHorizontal: 32,
-    paddingTop: 60,
-    paddingBottom: 80,
-  },
-  userHeader: {
-    width: '100%',
-    maxWidth: 780,
-    alignSelf: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 10,
-    marginBottom: 20,
-    gap: 12,
-  },
+  screen: { flex: 1, paddingHorizontal: 32, paddingTop: 60, paddingBottom: 80 },
+  tabletScreen: { paddingHorizontal: 20, paddingTop: 40, paddingBottom: 60 },
+  mobileScreen: { paddingHorizontal: 14, paddingTop: 32, paddingBottom: 48 },
+  userHeader: { width: '100%', maxWidth: 780, alignSelf: 'center', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 10, marginBottom: 20, gap: 12 },
+  mobileUserHeader: { paddingHorizontal: 0, alignItems: 'flex-start' },
   userInfo: { fontSize: 13, color: theme.colors.inkMid },
   mainNav: { flexDirection: 'row', gap: 8 },
   hero: { alignItems: 'center', marginBottom: 52 },
-  year: {
-    fontFamily: 'serif',
-    fontSize: 108,
-    fontWeight: '400',
-    letterSpacing: -3,
-    lineHeight: 98,
-    color: theme.colors.ink,
-  },
-  tagline: {
-    marginTop: 14,
-    fontSize: 10,
-    letterSpacing: 2.8,
-    textTransform: 'uppercase',
-    color: theme.colors.inkMid,
-    fontStyle: 'italic',
-    textAlign: 'center',
-  },
-  stats: {
-    width: '100%',
-    maxWidth: 780,
-    alignSelf: 'center',
-    flexDirection: 'row',
-    borderWidth: 1,
-    borderColor: theme.colors.inkFaint,
-    borderRadius: 12,
-    overflow: 'hidden',
-    marginBottom: 48,
-  },
-  stat: {
-    flex: 1,
-    minWidth: 0,
-    paddingVertical: 16,
-    paddingHorizontal: 12,
-    alignItems: 'center',
-    borderRightWidth: 1,
-    borderRightColor: theme.colors.inkFaint,
-  },
+  tabletHero: { marginBottom: 36 },
+  mobileHero: { marginBottom: 32 },
+  year: { fontFamily: 'serif', fontSize: 108, fontWeight: '400', letterSpacing: -3, lineHeight: 98, color: theme.colors.ink },
+  tabletYear: { fontSize: 88, lineHeight: 82, letterSpacing: -2.5 },
+  mobileYear: { fontSize: 70, lineHeight: 66, letterSpacing: -2 },
+  tagline: { marginTop: 14, fontSize: 10, letterSpacing: 2.8, textTransform: 'uppercase', color: theme.colors.inkMid, fontStyle: 'italic', textAlign: 'center' },
+  mobileTagline: { fontSize: 8, letterSpacing: 2.1, marginTop: 10 },
+  stats: { width: '100%', maxWidth: 780, alignSelf: 'center', flexDirection: 'row', borderWidth: 1, borderColor: theme.colors.inkFaint, borderRadius: 12, overflow: 'hidden', marginBottom: 48 },
+  tabletStats: { marginBottom: 32 },
+  mobileStats: { flexWrap: 'wrap', marginBottom: 32 },
+  stat: { flex: 1, minWidth: 0, paddingVertical: 16, paddingHorizontal: 12, alignItems: 'center', borderRightWidth: 1, borderRightColor: theme.colors.inkFaint },
   statLast: { flex: 1, minWidth: 0, paddingVertical: 16, paddingHorizontal: 12, alignItems: 'center' },
+  compactStat: { flexBasis: '25%' },
+  compactStatLast: { flexBasis: '25%' },
   statNumber: { fontFamily: 'serif', fontSize: 28, lineHeight: 30, color: theme.colors.ink },
   statLabelRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, marginTop: 5 },
   statLabel: { fontSize: 9, letterSpacing: 1.6, textTransform: 'uppercase', color: theme.colors.inkMid, textAlign: 'center' },
@@ -254,7 +218,9 @@ const styles = StyleSheet.create({
   today: { borderWidth: 2, borderColor: theme.colors.ink, borderRadius: 4 },
   dayPressed: { transform: [{ scale: 1.08 }] },
   legend: { width: '100%', maxWidth: 780, alignSelf: 'center', flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 20, marginTop: 36 },
+  mobileLegend: { gap: 10, marginTop: 24 },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   legendText: { fontSize: 9, letterSpacing: 1.6, textTransform: 'uppercase', color: theme.colors.inkMid },
   footer: { marginTop: 60, fontSize: 9, letterSpacing: 2, textTransform: 'uppercase', color: theme.colors.inkMid, textAlign: 'center' },
+  mobileFooter: { marginTop: 40 },
 });
