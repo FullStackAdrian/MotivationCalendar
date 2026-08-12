@@ -18,13 +18,9 @@ export default function CalendarScreen() {
   const { width } = useWindowDimensions();
   const [progress, setProgress] = useState<Record<string, keyof typeof API_TO_STATUS>>({});
   const [error, setError] = useState('');
-
   const year = 2026;
   const today = new Date();
-  const todayDoy = today.getFullYear() === year
-    ? calculateDayOfYear(today.toISOString().slice(0, 10))
-    : today.getFullYear() < year ? 0 : 366;
-
+  const todayDoy = today.getFullYear() === year ? calculateDayOfYear(today.toISOString().slice(0, 10)) : today.getFullYear() < year ? 0 : 366;
   const isMobile = width <= 480;
   const isTablet = width > 480 && width <= 768;
   const columns = isMobile ? 13 : isTablet ? 18 : 26;
@@ -36,9 +32,7 @@ export default function CalendarScreen() {
   }, [days, columns]);
 
   useEffect(() => {
-    repository.getProgress()
-      .then((response) => setProgress(response.progress ?? {}))
-      .catch((e) => setError(e instanceof Error ? e.message : 'No se pudo cargar el calendario'));
+    repository.getProgress().then((response) => setProgress(response.progress ?? {})).catch((e) => setError(e instanceof Error ? e.message : 'No se pudo cargar el calendario'));
   }, []);
 
   const stats = useMemo(() => {
@@ -55,19 +49,13 @@ export default function CalendarScreen() {
     if (day < todayDoy) return;
     const key = dayKeyForYearDay(year, day);
     const current = progress[key];
-    const next = current === 'completed'
-      ? 'partial'
-      : current === 'partial'
-        ? 'failed'
-        : current === 'failed' ? undefined : 'completed';
-
+    const next = current === 'completed' ? 'partial' : current === 'partial' ? 'failed' : current === 'failed' ? undefined : 'completed';
     setProgress((previous) => {
       const copy = { ...previous };
       if (next) copy[key] = next;
       else delete copy[key];
       return copy;
     });
-
     try {
       if (next) await repository.updateDay(key, STATUS_TO_API[API_TO_STATUS[next]]);
     } catch (e) {
@@ -75,109 +63,39 @@ export default function CalendarScreen() {
     }
   };
 
-  const visualColor = (state: VisualState) => ({
-    done: theme.colors.done,
-    partial: theme.colors.partial,
-    miss: theme.colors.miss,
-    past: theme.colors.past,
-    future: theme.colors.future,
-    today: theme.colors.future,
-  }[state]);
+  const visualColor = (state: VisualState) => ({ done: theme.colors.done, partial: theme.colors.partial, miss: theme.colors.miss, past: theme.colors.past, future: theme.colors.future, today: theme.colors.future }[state]);
 
   const renderDay = (day: number) => {
     const key = dayKeyForYearDay(year, day);
     const status = progress[key];
-    const visual = getDayVisualState({
-      dayOfYear: day,
-      todayDayOfYear: todayDoy,
-      status: status ? API_TO_STATUS[status] : null,
-    }) as VisualState;
-
+    const visual = getDayVisualState({ dayOfYear: day, todayDayOfYear: todayDoy, status: status ? API_TO_STATUS[status] : null }) as VisualState;
     return (
-      <Pressable
-        key={day}
-        accessibilityLabel={`Día ${day}`}
-        accessibilityRole="button"
-        onPress={() => cycleDay(day)}
-        disabled={day < todayDoy}
-        style={({ pressed }) => [
-          styles.day,
-          { backgroundColor: visualColor(visual) },
-          visual === 'today' && styles.today,
-          pressed && day >= todayDoy && styles.dayPressed,
-        ]}
-      />
+      <Pressable key={day} accessibilityLabel={`Día ${day}`} accessibilityRole="button" onPress={() => cycleDay(day)} disabled={day < todayDoy} style={({ pressed }) => [styles.day, { backgroundColor: visualColor(visual) }, visual === 'today' && styles.today, pressed && day >= todayDoy && styles.dayPressed]} />
     );
   };
 
   return (
-    <Screen style={[styles.screen, isTablet && styles.tabletScreen, isMobile && styles.mobileScreen]}>
-      <View style={[styles.userHeader, isMobile && styles.mobileUserHeader]}>
+    <Screen style={StyleSheet.flatten([styles.screen, isTablet && styles.tabletScreen, isMobile && styles.mobileScreen])}>
+      <View style={StyleSheet.flatten([styles.userHeader, isMobile && styles.mobileUserHeader])}>
         <Text style={styles.userInfo}>Hola, {user?.username ?? ''}</Text>
-        <View style={styles.mainNav}>
-          <SecondaryButton title="📋 Kanban" onPress={() => router.push('/kanban')} />
-          <SecondaryButton title="Salir" onPress={() => logout().then(() => router.replace('/login'))} />
-        </View>
+        <View style={styles.mainNav}><SecondaryButton title="📋 Kanban" onPress={() => router.push('/kanban')} /><SecondaryButton title="Salir" onPress={() => logout().then(() => router.replace('/login'))} /></View>
       </View>
-
-      <View style={[styles.hero, isTablet && styles.tabletHero, isMobile && styles.mobileHero]}>
-        <Text style={[styles.year, isTablet && styles.tabletYear, isMobile && styles.mobileYear]}>{year}</Text>
-        <Text style={[styles.tagline, isMobile && styles.mobileTagline]}>Cada día que pasa, ya no vuelve</Text>
+      <View style={StyleSheet.flatten([styles.hero, isTablet && styles.tabletHero, isMobile && styles.mobileHero])}>
+        <Text style={StyleSheet.flatten([styles.year, isTablet && styles.tabletYear, isMobile && styles.mobileYear])}>{year}</Text>
+        <Text style={StyleSheet.flatten([styles.tagline, isMobile && styles.mobileTagline])}>Cada día que pasa, ya no vuelve</Text>
       </View>
-
-      <View style={[styles.stats, isTablet && styles.tabletStats, isMobile && styles.mobileStats]}>
-        <View style={[styles.stat, (isMobile || isTablet) && styles.compactStat]}>
-          <Text style={styles.statNumber}>{stats.done}</Text>
-          <View style={styles.statLabelRow}><View style={[styles.dot, { backgroundColor: theme.colors.done }]} /><Text style={styles.statLabel}>Todo bien</Text></View>
-        </View>
-        <View style={[styles.stat, (isMobile || isTablet) && styles.compactStat]}>
-          <Text style={styles.statNumber}>{stats.partial}</Text>
-          <View style={styles.statLabelRow}><View style={[styles.dot, { backgroundColor: theme.colors.partial }]} /><Text style={styles.statLabel}>A medias</Text></View>
-        </View>
-        <View style={[styles.stat, (isMobile || isTablet) && styles.compactStat]}>
-          <Text style={styles.statNumber}>{stats.miss}</Text>
-          <View style={styles.statLabelRow}><View style={[styles.dot, { backgroundColor: theme.colors.miss }]} /><Text style={styles.statLabel}>Sin cumplir</Text></View>
-        </View>
-        <View style={[styles.statLast, (isMobile || isTablet) && styles.compactStatLast]}>
-          <Text style={styles.statNumber}>{stats.left}</Text>
-          <Text style={styles.statLabel}>Días restantes</Text>
-        </View>
+      <View style={StyleSheet.flatten([styles.stats, isTablet && styles.tabletStats, isMobile && styles.mobileStats])}>
+        <View style={StyleSheet.flatten([styles.stat, (isMobile || isTablet) && styles.compactStat])}><Text style={styles.statNumber}>{stats.done}</Text><View style={styles.statLabelRow}><View style={[styles.dot, { backgroundColor: theme.colors.done }]} /><Text style={styles.statLabel}>Todo bien</Text></View></View>
+        <View style={StyleSheet.flatten([styles.stat, (isMobile || isTablet) && styles.compactStat])}><Text style={styles.statNumber}>{stats.partial}</Text><View style={styles.statLabelRow}><View style={[styles.dot, { backgroundColor: theme.colors.partial }]} /><Text style={styles.statLabel}>A medias</Text></View></View>
+        <View style={StyleSheet.flatten([styles.stat, (isMobile || isTablet) && styles.compactStat])}><Text style={styles.statNumber}>{stats.miss}</Text><View style={styles.statLabelRow}><View style={[styles.dot, { backgroundColor: theme.colors.miss }]} /><Text style={styles.statLabel}>Sin cumplir</Text></View></View>
+        <View style={StyleSheet.flatten([styles.statLast, (isMobile || isTablet) && styles.compactStatLast])}><Text style={styles.statNumber}>{stats.left}</Text><Text style={styles.statLabel}>Días restantes</Text></View>
       </View>
-
       {error ? <Text style={styles.error}>{error}</Text> : null}
-
-      <FlatList
-        data={rows}
-        keyExtractor={(row) => String(row[0])}
-        style={styles.gridList}
-        contentContainerStyle={styles.grid}
-        showsVerticalScrollIndicator={false}
-        renderItem={({ item: row }) => (
-          <View style={styles.gridRow}>
-            {row.map(renderDay)}
-            {row.length < columns && Array.from({ length: columns - row.length }, (_, index) => (
-              <View key={`empty-${index}`} style={styles.dayPlaceholder} />
-            ))}
-          </View>
-        )}
-      />
-
-      <View style={[styles.legend, isMobile && styles.mobileLegend]}>
-        {[
-          ['past', 'Pasado sin marcar'],
-          ['future', 'Por venir'],
-          ['done', 'Todo bien'],
-          ['partial', 'A medias'],
-          ['miss', 'Sin cumplir'],
-        ].map(([key, label]) => (
-          <View style={styles.legendItem} key={key}>
-            <Badge label=" " backgroundColor={visualColor(key as VisualState)} />
-            <Text style={styles.legendText}>{label}</Text>
-          </View>
-        ))}
+      <FlatList data={rows} keyExtractor={(row) => String(row[0])} style={styles.gridList} contentContainerStyle={styles.grid} showsVerticalScrollIndicator={false} renderItem={({ item: row }) => <View style={styles.gridRow}>{row.map(renderDay)}{row.length < columns && Array.from({ length: columns - row.length }, (_, index) => <View key={`empty-${index}`} style={styles.dayPlaceholder} />)}</View>} />
+      <View style={StyleSheet.flatten([styles.legend, isMobile && styles.mobileLegend])}>
+        {[['past', 'Pasado sin marcar'], ['future', 'Por venir'], ['done', 'Todo bien'], ['partial', 'A medias'], ['miss', 'Sin cumplir']].map(([key, label]) => <View style={styles.legendItem} key={key}><Badge label=" " backgroundColor={visualColor(key as VisualState)} /><Text style={styles.legendText}>{label}</Text></View>)}
       </View>
-
-      <Text style={[styles.footer, isMobile && styles.mobileFooter]}>365 oportunidades {'\u00a0·\u00a0'} Aprovéchalas</Text>
+      <Text style={StyleSheet.flatten([styles.footer, isMobile && styles.mobileFooter])}>365 oportunidades {'\u00a0·\u00a0'} Aprovéchalas</Text>
     </Screen>
   );
 }
