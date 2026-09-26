@@ -4,7 +4,7 @@ Este documento explica cómo configurar la base de datos PostgreSQL para el proy
 
 ## ✅ Cambios Realizados
 
-1. **Se implementó Sequelize ORM** en `backend/models/database.js` para persistencia en PostgreSQL
+1. **Se implementó Sequelize ORM** en `backend/infrastructure/models/database.js` para persistencia en PostgreSQL
 2. **Se actualizaron todas las funciones** a async/await
 3. **Se agregaron modelos** para `User` y `Progress`
 4. **Se actualizó el servidor** para inicializar la DB al arrancar
@@ -199,7 +199,7 @@ Otro proceso está usando el puerto. Cambiar `DB_PORT` en `.env` y reiniciar Pos
 
 Cuando necesites hacer cambios en el esquema:
 
-1. Editar los modelos en `backend/models/database.js`
+1. Editar los modelos en `backend/infrastructure/models/database.js`
 2. En desarrollo: las tablas se actualizan automáticamente (`alter: true`)
 3. En producción: crear migraciones manuales con Sequelize CLI
 
