@@ -9,7 +9,9 @@ function walk(directory) {
   if (!fs.existsSync(directory)) return;
   for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
     const filePath = path.join(directory, entry.name);
-    if (entry.isDirectory()) walk(filePath);
+    if (entry.isDirectory()) {
+      if (entry.name !== 'node_modules') walk(filePath);
+    }
     else if (entry.isFile() && filePath.endsWith('.js')) files.push(filePath);
   }
 }
