@@ -3,7 +3,9 @@
  * Centraliza y valida las variables de entorno.
  */
 
-const parseAllowedOrigins = (value) => {
+export type NodeEnv = 'development' | 'test' | 'production';
+
+function parseAllowedOrigins(value: string | undefined): string[] {
   if (!value) {
     return ['http://localhost:3000', 'http://127.0.0.1:3000'];
   }
@@ -12,7 +14,7 @@ const parseAllowedOrigins = (value) => {
     .split(',')
     .map((origin) => origin.trim())
     .filter(Boolean);
-};
+}
 
 const jwtSecret = process.env.JWT_SECRET;
 if (!jwtSecret) {
@@ -23,12 +25,10 @@ if (process.env.NODE_ENV === 'production' && jwtSecret.length < 32) {
   throw new Error('JWT_SECRET debe tener al menos 32 caracteres en producción');
 }
 
-const config = {
+export const config = {
   port: Number(process.env.PORT) || 3000,
   jwtSecret,
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '30d',
-  nodeEnv: process.env.NODE_ENV || 'development',
+  nodeEnv: (process.env.NODE_ENV || 'development') as NodeEnv,
   allowedOrigins: parseAllowedOrigins(process.env.ALLOWED_ORIGINS)
-};
-
-module.exports = config;
+} as const;
