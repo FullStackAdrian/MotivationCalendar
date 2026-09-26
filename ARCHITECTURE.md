@@ -2,6 +2,8 @@
 
 Este documento describe la implementación del patrón arquitectónico **UseCase-Service-Controller-Presenter-View** para facilitar la implementación de nuevas vistas y funcionalidades tanto en el frontend como en el backend.
 
+> **Backend en TypeScript (strict)**: todo `backend/` es `.ts`. Comandos: `npm run typecheck` · `npm run build` (emite a `backend/dist/`) · `npm run dev` (tsx watch) · `npm test` (tsx + node:test) · `npm run test:coverage` (c8 remapea V8 coverage al fuente `.ts`; umbrales 80% líneas/funciones). Los puertos de dominio son interfaces reales (`domain/repositories/*.ts`) y los DTOs viven en `domain/types.ts`; la composición de dependencias ocurre en infrastructure (controllers y routes).
+
 ## 📋 Índice
 
 1. [Descripción General](#descripción-general)
@@ -41,95 +43,121 @@ Esta arquitectura separa responsabilidades en capas bien definidas:
 
 ```
 backend/
-├── config/              # Configuración de la aplicación
-├── controllers/         # Manejo de requests HTTP
-│   └── auth.controller.js
-├── usecases/            # Casos de uso (lógica de negocio)
-│   ├── login-user.usecase.js
-│   └── register-user.usecase.js
-├── services/            # Servicios técnicos
-│   └── user.service.js
-├── presenters/          # Formateo de respuestas
-│   └── auth.presenter.js
-├── models/              # Acceso a datos
-│   └── database.js
-├── routes/              # Definición de rutas
-│   └── auth.js
-├── middleware/          # Middlewares de Express
-└── server.js            # Punto de entrada
+├── server.js              # Punto de entrada
+├── application/           # Capa de aplicación (sin dependencias de infraestructura)
+│   ├── usecases/          # Casos de uso: orquestan middlewares → servicios
+│   │   ├── login-user.usecase.js
+│   │   └── register-user.usecase.js
+│   ├── middlewares/       # Pipeline del caso de uso
+│   │   ├── validation.middleware.js   # valida entradas con zod → ValidationError
+│   │   └── error-handler.middleware.js # clasifica errores en códigos semánticos
+│   └── schemas/           # Contratos de entrada declarativos (zod)
+│       ├── login-user.schema.js
+│       └── register-user.schema.js
+├── domain/                # Núcleo de negocio
+│   ├── kanban.js          # Entidad kanban (legacy, pendiente de limpiar)
+│   ├── repositories/      # PUERTOS de persistencia (clases abstractas)
+│   │   ├── user.repository.js
+│   │   ├── board.repository.js
+│   │   ├── column.repository.js
+│   │   └── task.repository.js
+│   └── services/          # Servicios de dominio (sin Sequelize ni crypto)
+│       ├── kanban.service.js
+│       └── user.service.js
+└── infrastructure/        # Adaptadores y detalles técnicos
+    ├── config/            # Configuración de la aplicación
+    │   └── config.js
+    ├── controllers/       # Manejo de requests HTTP + composición de dependencias
+    │   └── auth.controller.js
+    ├── security/          # Adaptadores criptográficos
+    │   ├── password-hasher.js  # bcryptjs
+    │   └── token-provider.js   # jsonwebtoken (única fuente JWT)
+    ├── repositories/      # ADAPTADORES Sequelize de los puertos de domain
+    │   ├── sequelize-user.repository.js
+    │   ├── sequelize-board.repository.js   # incluye membresías; transacciones aquí
+    │   ├── sequelize-column.repository.js  # tx de reorderPositions aquí
+    │   └── sequelize-task.repository.js    # incluye ocurrencias
+    ├── presenters/        # Formateo de respuestas
+    │   └── auth.presenter.js
+    ├── models/            # Acceso a datos (Sequelize)
+    │   ├── database.js
+    │   └── kanban.database.js
+    ├── routes/            # Definición de rutas
+    │   ├── auth.js
+    │   ├── kanban.js
+    │   └── progress.js
+    └── middleware/        # Middlewares del pipeline HTTP de Express
+        └── auth.js             # delega verificación en TokenProvider
 ```
 
 ### Capas Backend
 
-#### 1. Controller (`controllers/`)
+#### 1. Controller (`infrastructure/controllers/`)
 - Recibe requests HTTP
-- Extrae y valida datos básicos del request
-- Delega al UseCase correspondiente
-- Maneja errores y envía respuestas
+- **Composition root del flujo**: ensambla servicios, adaptadores y middlewares e inyecta todo al UseCase
+- Traduce códigos semánticos de error a estados HTTP (`CODE_TO_HTTP`)
+- Envía respuestas
 
 ```javascript
 // Ejemplo: auth.controller.js
 class AuthController {
   async register(req, res) {
     try {
-      const { username, email, password } = req.body;
-      const result = await this.registerUseCase.execute({ 
-        username, email, password 
-      });
+      const result = await this.registerUseCase.execute(req.body);
       res.status(201).json(result);
     } catch (error) {
-      this._handleError(error, res);
+      const statusCode = CODE_TO_HTTP[error.code] || 500;
+      res.status(statusCode).json({ error: error.message });
     }
   }
 }
 ```
 
-#### 2. UseCase (`usecases/`)
-- Contiene la lógica de negocio principal
-- Orquesta múltiples servicios si es necesario
-- Valida reglas de negocio
-- Es agnóstico al framework HTTP
+#### 2. UseCase (`application/usecases/`)
+- Orquesta el pipeline: **middleware de validación → reglas de negocio → servicios → presentación**
+- Todo envuelto por el middleware de gestión de errores (`this.errorHandler.run(...)`)
+- Recibe TODAS sus dependencias inyectadas (sin defaults): imposible importar infraestructura
+- Es agnóstico al framework HTTP y a las librerías criptográficas
 
 ```javascript
 // Ejemplo: register-user.usecase.js
-class RegisterUserUseCase {
-  async execute({ username, email, password }) {
-    this._validateInput({ username, email, password });
-    
-    const existingUser = await this.userService.findByUsernameOrEmail(username, email);
-    if (existingUser) {
-      throw new Error('El usuario ya está registrado');
-    }
-    
-    const user = await this.userService.createUser({ username, email, password });
-    const token = this.userService.generateToken(user);
-    
-    return this.presenter.presentRegistration(user, token);
-  }
+async execute(input) {
+  return this.errorHandler.run(async () => {
+    const data = this.validator.validate(registerUserSchema, input); // ValidationError → 400
+
+    const existingUser = await this.userService.findByUsernameOrEmail(data.username, data.email);
+    if (existingUser) throw new Error('El usuario o email ya está registrado'); // CONFLICT
+
+    const passwordHash = await this.passwordHasher.hash(data.password);
+    const user = await this.userService.createUser({ ...data, passwordHash });
+    return this.presenter.presentRegistration(user, this.tokenProvider.generate(user));
+  });
 }
 ```
 
-#### 3. Service (`services/`)
-- Operaciones técnicas (DB, APIs externas, cryptografía)
-- Sin lógica de negocio
-- Reutilizable por múltiples UseCases
+#### 2b. Middlewares del caso de uso (`application/middlewares/`)
+- `ValidationMiddleware.validate(schema, input)`: valida con zod; lanza `ValidationError` con mensaje normalizado
+- `ErrorHandlerMiddleware.run(operation)`: captura cualquier fallo y le adjunta un código semántico (`VALIDATION_ERROR`, `UNAUTHORIZED`, `CONFLICT`, `INTERNAL_ERROR`) mediante su catálogo de errores de negocio
+- Los códigos son independientes del transporte: el controller los traduce a HTTP
+- Viven en application (no en infrastructure) porque los orquesta el usecase y no dependen de ningún mecanismo de entrega
 
-```javascript
-// Ejemplo: user.service.js
-class UserService {
-  async createUser({ username, email, password }) {
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const user = createUser(username, email, hashedPassword);
-    return this._sanitizeUser(user);
-  }
-  
-  generateToken(user) {
-    return jwt.sign({ userId: user.id }, config.jwtSecret);
-  }
-}
-```
+#### 3. Service (`domain/services/`)
+- Solo lógica de dominio: reglas de negocio y orquestación de puertos
+- **Sin Sequelize**: consumen los puertos de `domain/repositories/` inyectados
+- **Sin hashing ni JWT**: eso vive en `infrastructure/security/`
+- Trabajan con objetos planos; las transacciones viven en los adaptadores
 
-#### 4. Presenter (`presenters/`)
+#### 3b. Repositorios (puertos en `domain/repositories/`, adaptadores en `infrastructure/repositories/`)
+- Los puertos son clases abstractas JS que declaran el contrato en lenguaje de negocio (`hasAccess`, `findByIdWithDetails`, `countActiveInColumn`...)
+- Los adaptadores Sequelize implementan los puertos, encapsulan `Op`, asociaciones (`include`), `transaction` y `findOrCreate`, y devuelven objetos planos vía `toJSON()`
+- La composición ocurre en infrastructure: controllers y routes construyen los servicios con sus adaptadores
+- Beneficio: los servicios se testean con fakes in-memory sin base de datos
+
+#### 3b. Adaptadores de seguridad (`infrastructure/security/`)
+- `PasswordHasher`: único punto que toca bcryptjs (`hash` / `compare`)
+- `TokenProvider`: única fuente de verdad JWT (`generate` / `verify`); el middleware Express de auth delega en él
+
+#### 4. Presenter (`infrastructure/presenters/`)
 - Transforma datos internos en formato de respuesta API
 - Centraliza el formato de respuestas
 - Facilita cambios en la estructura de respuestas
@@ -147,7 +175,7 @@ class AuthPresenter {
 }
 ```
 
-#### 5. Routes (`routes/`)
+#### 5. Routes (`infrastructure/routes/`)
 - Define endpoints HTTP
 - Asocia rutas con métodos del controller
 - Mínimo código, solo enrutamiento
