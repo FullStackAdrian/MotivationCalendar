@@ -1,7 +1,8 @@
-const test = require('node:test');
-const assert = require('node:assert/strict');
+import './helpers/test-env';
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
 
-const {
+import {
   createBoard,
   createColumn,
   moveColumn,
@@ -12,7 +13,7 @@ const {
   transitionTasksForDate,
   canNotifyTask,
   calculateTaskEffort
-} = require('../backend/domain/kanban');
+} from '../backend/domain/kanban';
 
 test('creates a board with an owner and empty columns', () => {
   const board = createBoard({ name: 'Trabajo', ownerId: 'u1' });
@@ -78,8 +79,8 @@ test('recurring completion creates a completed occurrence and next pending occur
     doneColumnId: 'done'
   });
   assert.equal(result.completed.status, 'done');
-  assert.equal(result.next.date, '2026-08-12');
-  assert.equal(result.next.status, 'todo');
+  assert.equal(result.next?.date, '2026-08-12');
+  assert.equal(result.next?.status, 'todo');
 });
 
 test('non recurring completed tasks are archived on the following day', () => {

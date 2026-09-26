@@ -1,27 +1,28 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { once } = require('node:events');
-const { Client } = require('pg');
+import '../helpers/test-env';
+import { Client } from 'pg';
 
 process.env.NODE_ENV = 'test';
 process.env.JWT_SECRET = process.env.JWT_SECRET || 'test-secret';
 process.env.DATABASE_URL = process.env.DATABASE_URL || 'postgres://postgres:postgres@localhost:5432/motivation_calendar_test';
 process.env.ALLOWED_ORIGINS = 'http://localhost:3000';
 
-const app = require('../../backend/server');
-const { initializeDatabase, closeDatabase, sequelize } = require('../../backend/models/database');
+import app from '../../backend/server';
+import { initializeDatabase, closeDatabase, sequelize } from '../../backend/infrastructure/models/database';
 
-let server;
-let baseUrl;
+let server: any;
+let baseUrl: string;
 
-async function request(path, options = {}) {
+async function request(path: string, options: RequestInit = {}): Promise<{ response: Response; body: any }> {
   const response = await fetch(`${baseUrl}${path}`, { ...options, headers: { 'Content-Type': 'application/json', ...(options.headers || {}) } });
   const contentType = response.headers.get('content-type') || '';
   const body = contentType.includes('application/json') ? await response.json() : await response.text();
   return { response, body };
 }
 
-function json(method, body, token) {
+function json(method: string, body?: unknown, token?: string): RequestInit {
   return { method, body: JSON.stringify(body), headers: token ? { Authorization: `Bearer ${token}` } : undefined };
 }
 
