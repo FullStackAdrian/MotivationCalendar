@@ -11,11 +11,20 @@ import './infrastructure/models/kanban.database';
 
 const app = express();
 app.disable('x-powered-by');
+// BETA-1: IP real tras los proxies de confianza (rate-limit correcto tras nginx).
+app.set('trust proxy', config.trustProxyHops);
 
 app.use((req: Request, res: Response, next: NextFunction) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  // BETA-1: el backend es API-only (JSON); endurecer el framing/tipos por defecto.
+  res.setHeader('Content-Security-Policy', "default-src 'none'; frame-ancestors 'none'");
+  // BETA-1: HSTS solo en producción (en local/test se sirve por HTTP).
+  // Se lee process.env en cada petición para que sea comprobable en tests.
+  if (process.env.NODE_ENV === 'production') {
+    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  }
   next();
 });
 
@@ -51,11 +60,18 @@ app.use('/api/kanban', kanbanRoutes);
 app.get('/api/health', async (req: Request, res: Response) => {
   try {
     await sequelize.authenticate();
-    res.json({ status: 'ok', database: 'ok', timestamp: new Date().toISOString(), environment: config.nodeEnv });
+    // BETA-1: respuesta mínima, sin detalles de entorno.
+    res.json({ status: 'ok', database: 'ok', timestamp: new Date().toISOString() });
   } catch (error) {
     console.error('Health check failed:', error);
     res.status(503).json({ status: 'error', database: 'unavailable' });
   }
+});
+
+// BETA-1: el backend es 100% API-only → las rutas desconocidas son JSON 404,
+// nunca el HTML por defecto de Express.
+app.use((req: Request, res: Response) => {
+  res.status(404).json({ error: 'No encontrado' });
 });
 
 interface HttpError extends Error {

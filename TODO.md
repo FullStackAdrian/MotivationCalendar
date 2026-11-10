@@ -218,6 +218,8 @@ All files                            |   93.62 |    81.51 |   93.11 |   93.62
 
 ## BETA-1 — Seguridad y robustez API (`chore/beta-1-api-hardening`)
 
+> Hecho 2026-11-11: unit 132/132, integración 30/30, cobertura 99.3/89.5/99.4 con gate verde, lint OK.
+
 Evidencia: `POST /api/auth/login` x21 seguidos → 21×`401`, ningún `429`
 (`backend/infrastructure/routes/auth.ts:15-17` sin rate-limit; grep
 `helmet|rate-limit` en `server.ts`/`package.json` = 0). Headers en
@@ -229,18 +231,18 @@ Evidencia: `POST /api/auth/login` x21 seguidos → 21×`401`, ningún `429`
 genérico. `/api/health` expone `environment`; con `NODE_ENV=development`
 (Docker local) el handler CORS devuelve el mensaje interno.
 
-- [ ] **B1.1** Rate-limit en `POST /api/auth/register` y `/login`
+- [x] **B1.1** Rate-limit en `POST /api/auth/register` y `/login`
       (`express-rate-limit`, p. ej. 10/15min por IP; `trust proxy` si hay
       nginx delante). Test del `429`. (Solapa con P.3.)
-- [ ] **B1.2** 404 JSON API-only: catch-all tras las rutas que devuelva
+- [x] **B1.2** 404 JSON API-only: catch-all tras las rutas que devuelva
       `{ error: 'No encontrado' }` en vez del HTML de Express. Test.
-- [ ] **B1.3** Mapear `'Estado no encontrado'` → 404 en `kanban.ts:56-60`
+- [x] **B1.3** Mapear `'Estado no encontrado'` → 404 en `kanban.ts:56-60`
       (o mensaje `'Tablero no encontrado'` que case con la regex). Test:
       `GET boards/:id` inexistente → 404, no 500.
-- [ ] **B1.4** Headers: añadir HSTS (solo prod/tras TLS) + CSP básica o
+- [x] **B1.4** Headers: añadir HSTS (solo prod/tras TLS) + CSP básica o
       documentar por qué no aplican al API-only; mantener `x-powered-by`
       desactivado. Test de headers.
-- [ ] **B1.5** Sanitizar errores: ningún `err.message` interno ni `stack`
+- [x] **B1.5** Sanitizar errores: ningún `err.message` interno ni `stack`
       fuera de `development` (revisar `server.ts:67-73`,
       `auth.controller.ts:83-92`); `/api/health` sin `environment` en
       respuesta (o campo mínimo `status/database`).
