@@ -120,8 +120,9 @@ motivation-calendar/
 ├── frontend/
 ├── scripts/
 │   ├── check-js-syntax.js
-│   ├── frontend-smoke.js
-│   └── security-check.js
+│   ├── frontend-smoke-expo.js
+│   ├── security-check.js
+│   └── test-db-up.sh
 ├── test/integration/
 ├── .github/workflows/
 │   ├── ci.yml
@@ -160,7 +161,7 @@ Pull requests and pushes to `master` run:
 2. JavaScript syntax/lint checks
 3. Unit tests
 4. PostgreSQL-backed HTTP integration tests
-5. Frontend static smoke tests
+5. Expo static smoke tests (`scripts/frontend-smoke-expo.js`: app.json, rutas, sin hosts prohibidos)
 6. Test coverage and artifact upload
 7. `npm audit --audit-level=high`
 
@@ -168,7 +169,7 @@ The workflow uses minimal `contents: read` permissions.
 
 ### Docker
 
-The Docker workflow builds and inspects the backend image, starts the PostgreSQL + backend compose stack, waits for `/api/health`, and performs frontend smoke checks through the packaged backend.
+The Docker workflow builds and inspects the backend image, starts the PostgreSQL + backend compose stack, waits for `/api/health`, and asserts the API-only backend answers 404 on `/`.
 
 ### Deployment
 

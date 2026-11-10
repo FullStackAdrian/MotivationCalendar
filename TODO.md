@@ -126,22 +126,15 @@ con BD, `npm test` y `npm run test:coverage` en verde local.
 
 ## Bloque D — Limpiar y ampliar los smoke tests
 
-- [ ] **D.1** **Limpiar el smoke test legado**: `scripts/frontend-smoke.js` solo debe validar el frontend
-      que de verdad se despliega. Decidir destino del web vanilla:
-  - **Opción 1 (recomendada)**: eliminar `frontend/index.html`, `frontend/assets/js/**` y
-    `scripts/frontend-smoke.js`, y borrar los pasos `test:frontend` de `package.json` y `ci.yml`.
-  - **Opción 2**: si el web vanilla sigue vivo, moverlo a `frontend-legacy/` con su propio smoke.
-- [ ] **D.2** **Ampliar el smoke test real** a nivel de app Expo, sustituyendo lo anterior:
-  - nuevo `scripts/frontend-smoke-expo.js` o, mejor, test Jest:
-    - `app.json` válido (slug, scheme, `android.package`, plugins `expo-router`/`expo-secure-store`);
-    - `package.json` → `main: "expo-router/entry"` y scripts `android/ios/web` presentes;
-    - presencia de `app/_layout.tsx` + pantallas `index/login/register/calendar/kanban/archive`;
-    - **sin referencias a hosts prohibidos** (heroku, `localhost` hardcodeado → usar `EXPO_PUBLIC_*`/config);
-    - banderas de `metro.config.js` / `babel.config.js` coherentes con SDK 57.
-- [ ] **D.3** Verificar que `npm run export:web` (job `frontend-expo` de CI) sigue pasando tras el cambio.
-- [ ] **D.4** Asegurar que el **health check** `GET /api/health` y el fallback estático de
-      `backend/server.ts` (líneas 62-66) quedan cubiertos por tests de integración si desaparece el
-      `index.html` legado (ajustar o eliminar esa ruta si el frontend ya es 100% Expo).
+- [x] **D.1** **Limpiar el smoke test legado** (Opción 1): eliminado `frontend/index.html`,
+      `frontend/assets/js/**` (18 ficheros) y `scripts/frontend-smoke.js`. `test:frontend` se **conserva**
+      como nombre pero apunta al smoke Expo (D.2), así que el paso de CI y la docs siguen valiendo.
+- [x] **D.2** Nuevo `scripts/frontend-smoke-expo.js`: valida `app.json`, `main`+scripts+deps,
+      las 7 rutas, hosts prohibidos (`localhost` solo junto a `EXPO_PUBLIC_*`) y metro/babel SDK 57.
+- [x] **D.3** `npm run export:web` verificado en local (EXIT:0, `dist/` con 7 rutas + `_expo/`).
+- [x] **D.4** Backend 100% API-only: eliminado el estático + fallback de `backend/server.ts`;
+      integración y edge tests asertan `GET /api/health` 200 y rutas desconocidas 404. `deploy-pages.yml`
+      y `docker.yml` migrados al export Expo / health+404.
 
 **Criterio de aceptación:** `npm run lint` no referencia a nada eliminado; CI verde en los 2 jobs.
 

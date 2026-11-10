@@ -84,10 +84,9 @@ test('server returns 413 for oversized JSON payloads', async () => {
   assert.deepEqual(await response.json(), { error: 'Payload demasiado grande' });
 });
 
-test('frontend fallback serves index for an unknown route', async () => {
+test('unknown routes return 404 on the API-only backend', async () => {
   const response = await request('/some/client-side-route');
-  assert.equal(response.status, 200);
-  assert.match(await response.text(), /<title>2026/);
+  assert.equal(response.status, 404);
 });
 
 test('health endpoint returns 503 when the database is unavailable', async () => {

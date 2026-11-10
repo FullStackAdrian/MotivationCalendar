@@ -39,13 +39,11 @@ test.after(async () => {
   await closeDatabase();
 });
 
-test('health and frontend smoke endpoints work', async () => {
+test('health and unknown routes behave as an API-only backend', async () => {
   const health = await request('/api/health');
   assert.equal(health.response.status, 200); assert.equal(health.body.status, 'ok'); assert.equal(health.body.database, 'ok');
-  const index = await request('/');
-  assert.equal(index.response.status, 200); assert.match(index.body, /<title>2026/);
-  const asset = await request('/assets/js/api-client.js');
-  assert.equal(asset.response.status, 200); assert.match(asset.body, /APP_CONFIG/);
+  const unknown = await request('/some/client-side-route');
+  assert.equal(unknown.response.status, 404);
 });
 
 test('authentication rejects malformed JSON payloads with 400', async () => {
