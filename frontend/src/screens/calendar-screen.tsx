@@ -5,6 +5,7 @@ import { Badge, Screen, SecondaryButton } from '@/components/ui';
 import { useAuth } from '@/contexts/auth-context';
 import { useResponsive } from '@/hooks/use-responsive';
 import { CalendarRepository } from '@/infrastructure/calendar/calendar.repository';
+import { friendlyAuthError } from '@/screens/auth-error';
 import { calculateDayOfYear, dayKeyForYearDay, getDayVisualState } from '@/domain/calendar/calendar';
 import { theme } from '@/theme';
 
@@ -31,7 +32,7 @@ export default function CalendarScreen() {
   }, [days, columns]);
 
   useEffect(() => {
-    repository.getProgress().then((response) => setProgress(response.progress ?? {})).catch((e) => setError(e instanceof Error ? e.message : 'No se pudo cargar el calendario'));
+    repository.getProgress().then((response) => setProgress(response.progress ?? {})).catch((e) => setError(friendlyAuthError(e, 'No se pudo cargar el calendario')));
   }, []);
 
   const stats = useMemo(() => {

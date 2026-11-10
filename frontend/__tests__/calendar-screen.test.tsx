@@ -37,6 +37,7 @@ function authState(overrides: Partial<ReturnType<typeof useAuth>> = {}): ReturnT
   return {
     user: { id: 'u1', username: 'alice', email: 'a@b.com' },
     loading: false,
+    sessionExpired: false,
     login: jest.fn(),
     register: jest.fn(),
     logout: jest.fn().mockResolvedValue(undefined),
@@ -76,6 +77,12 @@ describeNative('CalendarScreen', () => {
     http().get.mockRejectedValue(new Error('caído'));
     const { findByText } = render(<CalendarScreen />);
     expect(await findByText('caído')).toBeTruthy();
+  });
+
+  it('maps connectivity failures to a friendly message', async () => {
+    http().get.mockRejectedValue(new Error('Network Error'));
+    const { findByText } = render(<CalendarScreen />);
+    expect(await findByText('No se pudo conectar con el servidor. Revisa tu conexión.')).toBeTruthy();
   });
 
   it('rotates a future day through partial and failed before clearing it', async () => {

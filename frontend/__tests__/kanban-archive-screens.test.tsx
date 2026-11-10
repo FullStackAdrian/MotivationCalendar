@@ -38,6 +38,7 @@ function authState(overrides: Partial<ReturnType<typeof useAuth>> = {}): ReturnT
   return {
     user: { id: 'u1', username: 'alice', email: 'a@b.com' },
     loading: false,
+    sessionExpired: false,
     login: jest.fn(),
     register: jest.fn(),
     logout: jest.fn().mockResolvedValue(undefined),
@@ -109,7 +110,7 @@ describeNative('KanbanScreen', () => {
   it('shows loading errors', async () => {
     http().get.mockRejectedValue(new Error('sin conexión'));
     const { findByText } = render(<KanbanScreen />);
-    expect(await findByText('sin conexión')).toBeTruthy();
+    expect(await findByText('No se pudo conectar con el servidor. Revisa tu conexión.')).toBeTruthy();
   });
 
   it('moves a task to the next column when its card is pressed', async () => {

@@ -24,6 +24,7 @@ function authState(overrides: Partial<ReturnType<typeof useAuth>> = {}): ReturnT
   return {
     user: null,
     loading: false,
+    sessionExpired: false,
     login: jest.fn(),
     register: jest.fn(),
     logout: jest.fn(),
@@ -79,6 +80,25 @@ describeNative('LoginScreen', () => {
     fireEvent.press(getByText('Entrar'));
     expect(await findByText('Credenciales inválidas')).toBeTruthy();
     expect(mockReplace).not.toHaveBeenCalled();
+  });
+
+  it('maps connectivity failures to a friendly message', async () => {
+    const login = jest.fn().mockRejectedValue(new Error('No permitido por CORS'));
+    mockUseAuth.mockReturnValue(authState({ login }));
+    const { getAllByDisplayValue, getByText, findByText, queryByText } = render(<LoginScreen />);
+    const [identifier, password] = getAllByDisplayValue('');
+    fireEvent.changeText(identifier, 'alice');
+    fireEvent.changeText(password, 'x');
+    fireEvent.press(getByText('Entrar'));
+    expect(await findByText('No se pudo conectar con el servidor. Revisa tu conexión.')).toBeTruthy();
+    expect(queryByText('No permitido por CORS')).toBeNull();
+    expect(mockReplace).not.toHaveBeenCalled();
+  });
+
+  it('shows a session-expired notice', () => {
+    mockUseAuth.mockReturnValue(authState({ sessionExpired: true }));
+    const { getByText } = render(<LoginScreen />);
+    expect(getByText('La sesión ha expirado. Vuelve a entrar.')).toBeTruthy();
   });
 
   it('navigates to registration', () => {

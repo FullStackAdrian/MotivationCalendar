@@ -13,9 +13,6 @@ import CalendarRoute from '../app/calendar';
 import KanbanRoute from '../app/kanban';
 import ArchiveRoute from '../app/archive';
 import RegisterScreen from '../src/screens/register-screen';
-import CalendarScreen from '../src/screens/calendar-screen';
-import KanbanScreen from '../src/screens/kanban-screen';
-import ArchiveScreen from '../src/screens/archive-screen';
 
 const mockReplace = jest.fn();
 
@@ -48,12 +45,46 @@ jest.mock('axios', () => {
 
 
 describeNative('app routes', () => {
-  it('re-export their screens', () => {
+  it('re-exports the public auth screens', () => {
     expect(LoginRoute).toBe(LoginScreen);
     expect(RegisterRoute).toBe(RegisterScreen);
-    expect(CalendarRoute).toBe(CalendarScreen);
-    expect(KanbanRoute).toBe(KanbanScreen);
-    expect(ArchiveRoute).toBe(ArchiveScreen);
+  });
+
+  it('guards protected routes behind the session', async () => {
+    for (const Route of [CalendarRoute, KanbanRoute, ArchiveRoute]) {
+      const { findByText, unmount } = render(
+        <AuthProvider>
+          <Route />
+        </AuthProvider>
+      );
+      expect(await findByText('redirect:/login')).toBeTruthy();
+      unmount();
+    }
+  });
+
+  it('renders protected screens for an active session', async () => {
+    const secure = jest.mocked(SecureStore);
+    secure.getItemAsync.mockResolvedValue(
+      'eyJhbGciOiJub25lIn0.eyJpZCI6InUxIiwidXNlcm5hbWUiOiJhbGljZSIsImVtYWlsIjoiYUBiLmNvbSIsImV4cCI6MjAwMDAwMDAwMH0.x'
+    );
+    try {
+      for (const [Route, marker] of [
+        [CalendarRoute, 'Cada día que pasa, ya no vuelve'],
+        [KanbanRoute, 'Organiza el trabajo sin perder de vista el día.'],
+        [ArchiveRoute, 'Archivo'],
+      ] as const) {
+        const { findByText, queryByText, unmount } = render(
+          <AuthProvider>
+            <Route />
+          </AuthProvider>
+        );
+        expect(await findByText(marker)).toBeTruthy();
+        expect(queryByText('redirect:/login')).toBeNull();
+        unmount();
+      }
+    } finally {
+      secure.getItemAsync.mockResolvedValue(null);
+    }
   });
 
   it('redirects to login when there is no session', async () => {
