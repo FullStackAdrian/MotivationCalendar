@@ -80,16 +80,37 @@ The repository intentionally does not use `npm test` as its only CI criterion. T
 
 ```bash
 npm run lint
-npm test
+npm run test:unit
 npm run test:integration
 npm run test:frontend
 npm run test:coverage
 npm audit --audit-level=high
 ```
 
+`npm test` corre unitarias + integración juntas (útil en local con la BD levantada).
+En CI se separan en `test:unit` + `test:integration` para evitar la duplicación.
+
+### Cómo correr los tests localmente (Postgres)
+
+```bash
+# Levanta Postgres para tests (docker-compose.yml con puerto mapeado al host)
+# y crea la BD motivation_calendar_test si no existe.
+npm run test:db:up
+
+npm test              # unitarias + integración
+npm run test:unit     # solo unitarias
+npm run test:integration  # solo integración (necesita Postgres)
+npm run test:coverage # gates en .c8rc.json + informe en coverage/
+```
+
+`test/helpers/test-env.ts` fija `DATABASE_URL` por defecto a
+`postgres://postgres:postgres@localhost:5432/motivation_calendar_test` si no hay
+`DATABASE_URL` en el entorno. Si tu 5432 está ocupado, pon `POSTGRES_PORT=5433`
+en tu `.env` (ver `.env.example`) y exporta un `DATABASE_URL` acorde.
+
 `test/integration/api.test.js` exercises the HTTP API against PostgreSQL, including registration, duplicate conflicts, login, authentication failures, user isolation, single-day updates, bulk updates, persistence after reconnecting to the database, and deletion.
 
-Coverage output is uploaded by GitHub Actions as the `test-coverage` artifact. The initial pipeline deliberately reports coverage rather than imposing an artificial 100% threshold; a backend-critical threshold can be introduced once the baseline is established.
+Coverage output is uploaded by GitHub Actions as the `test-coverage` artifact (`coverage/` con `test-coverage.txt` + `lcov.info`). Los gates están en `.c8rc.json` (`lines/functions/statements: 80`, `branches: 70`, `all: true`, `perFile: true`; global real: ~99/90/100/99): un archivo backend sin cubrir hace fallar el gate aunque el global aguante. El umbral de branches es 70 y no 75 porque V8 cuenta brazos del interop CJS (`__toESM`) en el preámbulo de los ficheros hoja sin lógica (schemas, token-provider: 100% líneas/funcs, ramas 71-73% inalcanzables).
 
 ## Project Structure
 
@@ -99,8 +120,9 @@ motivation-calendar/
 ├── frontend/
 ├── scripts/
 │   ├── check-js-syntax.js
-│   ├── frontend-smoke.js
-│   └── security-check.js
+│   ├── frontend-smoke-expo.js
+│   ├── security-check.js
+│   └── test-db-up.sh
 ├── test/integration/
 ├── .github/workflows/
 │   ├── ci.yml
@@ -139,7 +161,7 @@ Pull requests and pushes to `master` run:
 2. JavaScript syntax/lint checks
 3. Unit tests
 4. PostgreSQL-backed HTTP integration tests
-5. Frontend static smoke tests
+5. Expo static smoke tests (`scripts/frontend-smoke-expo.js`: app.json, rutas, sin hosts prohibidos)
 6. Test coverage and artifact upload
 7. `npm audit --audit-level=high`
 
@@ -147,7 +169,7 @@ The workflow uses minimal `contents: read` permissions.
 
 ### Docker
 
-The Docker workflow builds and inspects the backend image, starts the PostgreSQL + backend compose stack, waits for `/api/health`, and performs frontend smoke checks through the packaged backend.
+The Docker workflow builds and inspects the backend image, starts the PostgreSQL + backend compose stack, waits for `/api/health`, and asserts the API-only backend answers 404 on `/`.
 
 ### Deployment
 

@@ -587,51 +587,20 @@ app-refactored.js
 
 ## Testing
 
-### Ejemplo de Test para UseCase (Backend)
+Estrategia actual (ver `TODO.md` y `.c8rc.json` / `frontend/package.json`):
 
-```javascript
-// tests/usecases/register-user.test.js
-describe('RegisterUserUseCase', () => {
-  it('debe registrar un usuario correctamente', async () => {
-    const mockUserService = {
-      findByUsernameOrEmail: jest.fn().mockResolvedValue(null),
-      createUser: jest.fn().mockResolvedValue({ id: 1, username: 'test' }),
-      generateToken: jest.fn().mockReturnValue('token123')
-    };
-    
-    const useCase = new RegisterUserUseCase(mockUserService);
-    const result = await useCase.execute({
-      username: 'test',
-      email: 'test@example.com',
-      password: 'password123'
-    });
-    
-    expect(result.token).toBe('token123');
-  });
-});
-```
-
-### Ejemplo de Test para View (Frontend)
-
-```javascript
-// tests/views/login.test.js
-describe('LoginView', () => {
-  it('debe obtener datos del formulario', () => {
-    const mockElements = {
-      container: document.createElement('div'),
-      form: document.createElement('form'),
-      identifierInput: { value: 'test' },
-      passwordInput: { value: '123456' }
-    };
-    
-    const view = new LoginView(mockElements);
-    const data = view.getFormData();
-    
-    expect(data.identifier).toBe('test');
-    expect(data.password).toBe('123456');
-  });
-});
-```
+| Capa | Herramienta | Qué se testea |
+|---|---|---|
+| Dominio backend (`domain/**`) | Node test runner + `tsx` (`test/*.test.ts`) | Lógica pura: transiciones kanban, WIP, recurrencias, validaciones. Sin BD, rápido. |
+| Aplicación backend (`application/**`) | Node test runner | Schemas Zod (transformaciones, mensajes), usecases con puertos mockeados. |
+| Infraestructura backend | Node test runner + Postgres real (`test/integration/`) | Repositorios Sequelize (nulls, rollback), seguridad (JWT expirado/firma/alg, bcrypt), rutas HTTP (403/400/500), arranque y shutdown. |
+| Cobertura backend | `c8` + `.c8rc.json` | `lines/functions/statements: 80`, `branches: 70`, `all: true`, `perFile: true`. `npm run test:coverage` falla si un fichero queda bajo el umbral. |
+| Dominio frontend (`src/domain`) | Jest `jest-expo/universal` (`frontend/__tests__/`) | Lógica pura de calendario. Corre en los 4 proyectos. |
+| Infraestructura frontend | Jest + mocks (`axios`, `expo-secure-store`) | `api-client` (baseURL por plataforma, 401 → logout), `token-storage` (web vs nativo), repositorios. |
+| Contextos y hooks | Jest + `@testing-library/react-native` | `AuthProvider` (login/logout/persistencia/expiración), `useResponsive` (breakpoints). Solo proyectos nativos (ver `__tests__/helpers/projects.ts`). |
+| Componentes y pantallas | Jest + RTL, `expo-router` y `useAuth` mockeados | Render, validación de formularios y navegación (`login`, `register`, `calendar`, `kanban`, `archive`, rutas `app/`). Solo proyectos nativos. |
+| Smoke estático | `scripts/frontend-smoke-expo.js` (`npm run test:frontend`) | `app.json`, rutas, hosts prohibidos, metro/babel. Sin ejecutar la app. |
+| CI | `.github/workflows/ci.yml` | Job `test`: lint → unit → integración → smoke → cobertura → audit. Job `frontend-expo`: typecheck → jest (+cobertura) → `expo export --web`. |
 
 ---
 

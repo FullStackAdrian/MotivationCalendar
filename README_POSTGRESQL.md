@@ -111,6 +111,21 @@ GRANT ALL PRIVILEGES ON DATABASE motivation_calendar TO motivation_user;
 npm start
 ```
 
+## 🧪 Cómo correr los tests localmente
+
+```bash
+# Levanta Postgres local y crea la BD de tests si no existe
+npm run test:db:up
+
+npm test              # unitarias + integración
+npm run test:unit     # solo unitarias
+npm run test:integration  # solo integración (necesita Postgres)
+npm run test:coverage # gates en .c8rc.json + informe en coverage/
+```
+
+Si el puerto 5432 está ocupado: pon `POSTGRES_PORT=5433` en tu `.env` (no versionado,
+ver `.env.example`) y exporta `DATABASE_URL=postgres://postgres:postgres@localhost:5433/motivation_calendar_test`.
+
 Verás un mensaje como:
 
 ```

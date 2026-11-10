@@ -1,5 +1,4 @@
 import 'dotenv/config';
-import path from 'path';
 import cors from 'cors';
 import express, { type NextFunction, type Request, type Response } from 'express';
 import { config } from './infrastructure/config/config';
@@ -58,12 +57,6 @@ app.get('/api/health', async (req: Request, res: Response) => {
     res.status(503).json({ status: 'error', database: 'unavailable' });
   }
 });
-
-// Estáticos del frontend compilado; resuelto desde el cwd del proceso
-// (idéntico en desarrollo con tsx y en producción dentro del contenedor).
-const frontendPath = path.join(process.cwd(), 'frontend');
-app.use(express.static(frontendPath));
-app.get('/{*splat}', (req: Request, res: Response) => res.sendFile(path.join(frontendPath, 'index.html')));
 
 interface HttpError extends Error {
   type?: string;

@@ -102,4 +102,95 @@ test('paused tasks are semantically excluded from future notification decisions'
 
 test('effort points and estimated time remain independent dimensions', () => {
   assert.deepEqual(calculateTaskEffort({ effortPoints: 5, estimatedMinutes: 30 }), { effortPoints: 5, estimatedMinutes: 30 });
+  assert.deepEqual(calculateTaskEffort({}), { effortPoints: null, estimatedMinutes: null });
+});
+
+test('board creation validates owner, name and color fallbacks', () => {
+  assert.throws(() => createBoard({ name: 'X' }), /propietario/i);
+  assert.throws(() => createBoard({ ownerId: 'u1', name: '  ' }), /nombre/i);
+  assert.throws(() => createBoard({ ownerId: 'u1', name: 42 }), /nombre/i);
+  const fallback = createBoard({ ownerId: 'u1', name: ' B ', color: 42 });
+  assert.equal(fallback.name, 'B');
+  assert.equal(fallback.color, '#6366f1');
+});
+
+test('column creation validates board, position and wip limits', () => {
+  assert.throws(() => createColumn({ name: 'Todo', position: 0 }), /pizarra/i);
+  for (const position of [-1, 1.5, '0', Number.NaN]) {
+    assert.throws(() => createColumn({ boardId: 'b1', name: 'Todo', position }), /posición/i);
+  }
+  for (const wipLimit of [0, -2, 1.5, '3']) {
+    assert.throws(() => createColumn({ boardId: 'b1', name: 'Todo', position: 0, wipLimit }), /WIP/i);
+  }
+  const column = createColumn({ boardId: 'b1', name: ' Todo ', position: 0, color: null, wipLimit: 2 });
+  assert.equal(column.name, 'Todo');
+  assert.equal(column.color, '#64748b');
+});
+
+test('column moves reject invalid targets and unknown columns', () => {
+  const columns = [
+    createColumn({ boardId: 'b1', name: 'A', position: 0 }),
+    createColumn({ boardId: 'b1', name: 'B', position: 1 })
+  ];
+  for (const targetPosition of [-1, 2, 1.5, '1', null]) {
+    assert.throws(() => moveColumn(columns, columns[0].id, targetPosition), /posición/i);
+  }
+  assert.throws(() => moveColumn(columns, 'missing', 0), /no encontrado/i);
+});
+
+test('recurrence validation covers every branch', () => {
+  assert.deepEqual(validateRecurrence(undefined), { type: 'none', days: [] });
+  assert.deepEqual(validateRecurrence({ type: 'weekly', days: [3, 1, 3] }), { type: 'weekly', days: [1, 3] });
+  assert.throws(() => validateRecurrence({ type: 'monthly' }), /frecuencia/i);
+  assert.throws(() => validateRecurrence({ type: 'weekly' }), /día/i);
+  for (const days of [[0], [8], [1.5], ['x']]) {
+    assert.throws(() => validateRecurrence({ type: 'weekly', days }), /día/i);
+  }
+});
+
+test('task creation validates every field', () => {
+  assert.throws(() => createTask({ title: 'T' }), /obligatorio/i);
+  assert.throws(() => createTask({ boardId: 'b', columnId: 'c', title: '' }), /nombre/i);
+  assert.throws(() => createTask({ boardId: 'b', columnId: 'c', title: 'T', priority: 'urgent' }), /prioridad/i);
+  assert.throws(() => createTask({ boardId: 'b', columnId: 'c', title: 'T', effortPoints: 0 }), /puntos/i);
+  assert.throws(() => createTask({ boardId: 'b', columnId: 'c', title: 'T', estimatedMinutes: 1.5 }), /duración/i);
+  assert.throws(() => createTask({ boardId: 'b', columnId: 'c', title: 'T', dueTime: '25:00' }), /hora/i);
+  assert.throws(() => createTask({ boardId: 'b', columnId: 'c', title: 'T', dueDate: 'tomorrow' }), /fecha/i);
+  const task = createTask({ boardId: 'b', columnId: 'c', title: 'T', tags: ['a', ' a ', 42, '', null] });
+  assert.deepEqual(task.tags, ['a']);
+});
+
+test('next occurrence rejects empty days and invalid dates', () => {
+  assert.throws(() => getNextOccurrenceDate('2026-08-10', []), /frecuencia/i);
+  assert.throws(() => getNextOccurrenceDate('not-a-date', [1]), /fecha/i);
+});
+
+test('occurrence completion requires entities and skips non-weekly tasks', () => {
+  assert.throws(() => completeOccurrence({ task: null, occurrence: { date: '2026-08-10' }, doneColumnId: 'd' } as never), /obligatoria/i);
+  const plain = completeOccurrence({
+    task: { id: 't1', recurrence: { type: 'none', days: [] } },
+    occurrence: { date: '2026-08-10' },
+    doneColumnId: 'd'
+  });
+  assert.equal(plain.next, null);
+  assert.equal(plain.completed.status, 'done');
+});
+
+test('date transitions keep archived, pending, future and weekly tasks', () => {
+  const tasks = [
+    { id: 'archived', status: 'done', completedAt: '2026-08-01T10:00:00Z', archivedAt: '2026-08-02' },
+    { id: 'pending', status: 'todo', completedAt: null, archivedAt: null },
+    { id: 'nodate', status: 'done', completedAt: null, archivedAt: null },
+    { id: 'future', status: 'done', completedAt: '2026-08-12T10:00:00Z', archivedAt: null }
+  ];
+  const result = transitionTasksForDate(tasks, '2026-08-11');
+  assert.deepEqual(result.map(task => task.archivedAt), ['2026-08-02', null, null, null]);
+});
+
+test('notification eligibility covers malformed and done tasks', () => {
+  assert.equal(canNotifyTask(null), false);
+  assert.equal(canNotifyTask('task'), false);
+  assert.equal(canNotifyTask({ archivedAt: '2026-08-01' }), false);
+  assert.equal(canNotifyTask({ status: { isDone: true } }), false);
+  assert.equal(canNotifyTask({}), true);
 });

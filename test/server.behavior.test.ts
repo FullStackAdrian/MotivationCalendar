@@ -11,15 +11,14 @@ import app from '../backend/server';
 
 type ListenServer = ReturnType<typeof app.listen>;
 
-test('server applies security headers and serves frontend fallback', async () => {
+test('server applies security headers and returns 404 without frontend fallback', async () => {
   const server: ListenServer = app.listen(0);
   const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
   const r = await fetch(base + '/some-client-route');
-  assert.equal(r.status, 200);
+  assert.equal(r.status, 404);
   assert.equal(r.headers.get('x-content-type-options'), 'nosniff');
   assert.equal(r.headers.get('x-frame-options'), 'DENY');
   assert.equal(r.headers.get('referrer-policy'), 'strict-origin-when-cross-origin');
-  assert.match(await r.text(), /<title>2026/);
   await new Promise((resolve) => server.close(resolve));
 });
 
@@ -34,7 +33,7 @@ test('server rejects disallowed CORS origins', async () => {
 test('server accepts allowed CORS origins', async () => {
   const server: ListenServer = app.listen(0);
   const r = await fetch(`http://127.0.0.1:${(server.address() as AddressInfo).port}/some-route`, { headers: { Origin: 'http://localhost:3000' } });
-  assert.equal(r.status, 200);
+  assert.equal(r.status, 404);
   assert.equal(r.headers.get('access-control-allow-origin'), 'http://localhost:3000');
   await new Promise((resolve) => server.close(resolve));
 });

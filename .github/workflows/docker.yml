@@ -36,10 +36,10 @@ jobs:
           docker compose -f docker-compose.ci.yml logs
           exit 1
 
-      - name: Smoke test frontend through backend
+      - name: Smoke test backend (API-only, no static frontend)
         run: |
-          curl --fail --silent http://127.0.0.1:3000/ | grep -q '2026 — Tracker'
-          curl --fail --silent http://127.0.0.1:3000/assets/js/api-client.js | grep -q 'APP_CONFIG'
+          curl --fail --silent http://127.0.0.1:3000/api/health
+          test "$(curl --silent -o /dev/null -w '%{http_code}' http://127.0.0.1:3000/)" = "404"
 
       - name: Tear down
         if: always()

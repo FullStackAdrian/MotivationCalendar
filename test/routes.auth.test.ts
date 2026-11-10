@@ -5,7 +5,13 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import express from 'express';
 import authRoutes from '../backend/infrastructure/routes/auth';
-import { closeDatabase } from '../backend/infrastructure/models/database';
+import { closeDatabase, sequelize } from '../backend/infrastructure/models/database';
+
+// El login consulta la tabla `users`: crear el esquema si no existe para no
+// depender del orden de ejecución ni de que la BD de test esté sincronizada.
+test.before(async () => {
+  await sequelize.sync();
+});
 
 // El flujo de login abre el pool de conexiones aunque no haya PostgreSQL:
 // hay que cerrarlo para que el proceso de test pueda terminar.

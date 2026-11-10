@@ -48,7 +48,7 @@ jobs:
       - name: Repository security configuration checks
         run: node scripts/security-check.js
       - name: Unit tests
-        run: npm test
+        run: npm run test:unit
       - name: Integration tests
         run: npm run test:integration
       - name: Frontend smoke tests
@@ -62,7 +62,6 @@ jobs:
           name: test-coverage
           path: |
             coverage/
-            coverage.txt
           if-no-files-found: warn
       - name: Security audit
         run: npm audit --audit-level=high
@@ -86,5 +85,14 @@ jobs:
         run: npm run typecheck
       - name: TDD unit and component tests
         run: npm test
+      - name: Coverage
+        run: npm run test:coverage
+      - name: Upload frontend coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-coverage
+          path: frontend/coverage/
+          if-no-files-found: warn
       - name: Metro web export
         run: npm run export:web
