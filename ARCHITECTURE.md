@@ -43,51 +43,51 @@ Esta arquitectura separa responsabilidades en capas bien definidas:
 
 ```
 backend/
-├── server.js              # Punto de entrada
+├── server.ts              # Punto de entrada
 ├── application/           # Capa de aplicación (sin dependencias de infraestructura)
 │   ├── usecases/          # Casos de uso: orquestan middlewares → servicios
-│   │   ├── login-user.usecase.js
-│   │   └── register-user.usecase.js
+│   │   ├── login-user.usecase.ts
+│   │   └── register-user.usecase.ts
 │   ├── middlewares/       # Pipeline del caso de uso
-│   │   ├── validation.middleware.js   # valida entradas con zod → ValidationError
-│   │   └── error-handler.middleware.js # clasifica errores en códigos semánticos
+│   │   ├── validation.middleware.ts   # valida entradas con zod → ValidationError
+│   │   └── error-handler.middleware.ts # clasifica errores en códigos semánticos
 │   └── schemas/           # Contratos de entrada declarativos (zod)
-│       ├── login-user.schema.js
-│       └── register-user.schema.js
+│       ├── login-user.schema.ts
+│       └── register-user.schema.ts
 ├── domain/                # Núcleo de negocio
-│   ├── kanban.js          # Entidad kanban (legacy, pendiente de limpiar)
-│   ├── repositories/      # PUERTOS de persistencia (clases abstractas)
-│   │   ├── user.repository.js
-│   │   ├── board.repository.js
-│   │   ├── column.repository.js
-│   │   └── task.repository.js
+│   ├── kanban.ts          # Entidad kanban (transiciones, WIP, recurrencias)
+│   ├── repositories/      # PUERTOS de persistencia (tipos TS)
+│   │   ├── user.repository.ts
+│   │   ├── board.repository.ts
+│   │   ├── column.repository.ts
+│   │   └── task.repository.ts
 │   └── services/          # Servicios de dominio (sin Sequelize ni crypto)
-│       ├── kanban.service.js
-│       └── user.service.js
+│       ├── kanban.service.ts
+│       └── user.service.ts
 └── infrastructure/        # Adaptadores y detalles técnicos
     ├── config/            # Configuración de la aplicación
-    │   └── config.js
+    │   └── config.ts
     ├── controllers/       # Manejo de requests HTTP + composición de dependencias
-    │   └── auth.controller.js
+    │   └── auth.controller.ts
     ├── security/          # Adaptadores criptográficos
-    │   ├── password-hasher.js  # bcryptjs
-    │   └── token-provider.js   # jsonwebtoken (única fuente JWT)
+    │   ├── password-hasher.ts  # bcryptjs
+    │   └── token-provider.ts   # jsonwebtoken (única fuente JWT)
     ├── repositories/      # ADAPTADORES Sequelize de los puertos de domain
-    │   ├── sequelize-user.repository.js
-    │   ├── sequelize-board.repository.js   # incluye membresías; transacciones aquí
-    │   ├── sequelize-column.repository.js  # tx de reorderPositions aquí
-    │   └── sequelize-task.repository.js    # incluye ocurrencias
+    │   ├── sequelize-user.repository.ts
+    │   ├── sequelize-board.repository.ts   # incluye membresías; transacciones aquí
+    │   ├── sequelize-column.repository.ts  # tx de reorderPositions aquí
+    │   └── sequelize-task.repository.ts    # incluye ocurrencias
     ├── presenters/        # Formateo de respuestas
-    │   └── auth.presenter.js
+    │   └── auth.presenter.ts
     ├── models/            # Acceso a datos (Sequelize)
-    │   ├── database.js
-    │   └── kanban.database.js
+    │   ├── database.ts
+    │   └── kanban.database.ts
     ├── routes/            # Definición de rutas
-    │   ├── auth.js
-    │   ├── kanban.js
-    │   └── progress.js
+    │   ├── auth.ts
+    │   ├── kanban.ts
+    │   └── progress.ts
     └── middleware/        # Middlewares del pipeline HTTP de Express
-        └── auth.js             # delega verificación en TokenProvider
+        └── auth.ts             # delega verificación en TokenProvider
 ```
 
 ### Capas Backend
@@ -99,7 +99,7 @@ backend/
 - Envía respuestas
 
 ```javascript
-// Ejemplo: auth.controller.js
+// Ejemplo: auth.controller.ts
 class AuthController {
   async register(req, res) {
     try {
@@ -120,7 +120,7 @@ class AuthController {
 - Es agnóstico al framework HTTP y a las librerías criptográficas
 
 ```javascript
-// Ejemplo: register-user.usecase.js
+// Ejemplo: register-user.usecase.ts
 async execute(input) {
   return this.errorHandler.run(async () => {
     const data = this.validator.validate(registerUserSchema, input); // ValidationError → 400
@@ -163,7 +163,7 @@ async execute(input) {
 - Facilita cambios en la estructura de respuestas
 
 ```javascript
-// Ejemplo: auth.presenter.js
+// Ejemplo: auth.presenter.ts
 class AuthPresenter {
   presentRegistration(user, token) {
     return {
@@ -188,174 +188,52 @@ router.post('/login', (req, res) => authController.login(req, res));
 
 ---
 
-## Arquitectura Frontend
+## Arquitectura Frontend (Expo + React Native)
+
+App Expo (SDK 57, `expo-router`): el antiguo frontend web vanilla (`index.html` +
+`assets/js/**`) se eliminó; el backend es API-only y el despliegue web sale de
+`expo export --platform web`.
 
 ### Estructura de Directorios
 
 ```
 frontend/
-├── assets/
-│   ├── js/
-│   │   ├── services/        # Comunicación con API
-│   │   │   └── api.service.js
-│   │   ├── usecases/        # Lógica de negocio frontend
-│   │   │   ├── login-user.usecase.js
-│   │   │   └── register-user.usecase.js
-│   │   ├── presenters/      # Transformación de datos UI
-│   │   │   └── auth.presenter.js
-│   │   ├── views/           # Componentes UI
-│   │   │   ├── login.view.js
-│   │   │   └── register.view.js
-│   │   ├── controllers/     # Coordinación UI-Lógica
-│   │   │   └── auth.controller.js
-│   │   └── app-refactored.js # Punto de entrada
-│   └── css/
-└── index.html
+├── app/                    # Rutas expo-router (cada fichero = pantalla)
+│   ├── _layout.tsx         # Stack + AuthProvider
+│   ├── index.tsx           # Redirect según sesión
+│   ├── login.tsx / register.tsx / calendar.tsx / kanban.tsx / archive.tsx
+├── src/
+│   ├── components/         # ui.tsx (Screen, Button, Field, Badge, AppHeader), Icon.tsx
+│   ├── screens/            # login/register/calendar/kanban/archive-screen.tsx
+│   ├── contexts/           # auth-context.tsx (AuthProvider + useAuth, JWT en secure-store)
+│   ├── hooks/              # use-responsive.ts (breakpoints sm/md/lg)
+│   ├── domain/calendar/    # lógica pura de calendario (sin RN)
+│   ├── infrastructure/
+│   │   ├── http/api-client.ts        # axios + baseURL (10.0.2.2 en Android) + 401 → logout
+│   │   ├── auth/                     # auth.repository.ts, token-storage.ts
+│   │   ├── calendar/calendar.repository.ts
+│   │   └── kanban/kanban.repository.ts
+│   └── theme.ts
+├── __tests__/              # Jest jest-expo/universal (4 proyectos)
+└── app.json                # slug, scheme, android.package, plugins expo-router/secure-store
 ```
 
 ### Capas Frontend
 
-#### 1. View (`views/`)
-- Manejo directo del DOM
-- Muestra/oculta elementos
-- Captura eventos de usuario
-- No contiene lógica de negocio
+#### 1. Pantallas (`screens/` + `app/` como re-export)
+- Componentes React con `useAuth()` y `useRouter()` mockeables.
+- Formularios con validación local (botón deshabilitado hasta completar) y navegación tras éxito (`router.replace('/calendar')`).
 
-```javascript
-// Ejemplo: login.view.js
-class LoginView {
-  constructor(elements) {
-    this.container = elements.container;
-    this.form = elements.form;
-    this.identifierInput = elements.identifierInput;
-    this.passwordInput = elements.passwordInput;
-  }
-  
-  show() {
-    this.container.style.display = 'block';
-  }
-  
-  getFormData() {
-    return {
-      identifier: this.identifierInput.value,
-      password: this.passwordInput.value
-    };
-  }
-  
-  onSubmit(callback) {
-    this.form.addEventListener('submit', (e) => {
-      e.preventDefault();
-      callback(this.getFormData());
-    });
-  }
-}
-```
+#### 2. Contexto (`contexts/auth-context.tsx`)
+- `AuthProvider` hidrata el JWT al arrancar, expone `login/register/logout`.
+- Tokens expirados, anónimos o malformados → usuario `null`.
 
-#### 2. Presenter (`presenters/`)
-- Transforma respuestas de API para la UI
-- Formatea errores para mostrar al usuario
-- Centraliza el formato de datos UI
+#### 3. Infraestructura (`infrastructure/`)
+- `ApiClient` centraliza axios: inyecta `Authorization`, convierte 401 en logout.
+- Repositorios (`calendar`, `kanban`, `auth`) mapean endpoints; sin lógica de negocio.
 
-```javascript
-// Ejemplo: auth.presenter.js
-class AuthPresenter {
-  presentLoginResponse(response) {
-    return {
-      success: true,
-      user: {
-        id: response.user?.id,
-        username: response.user?.username
-      },
-      message: response.message || 'Login exitoso'
-    };
-  }
-  
-  presentAuthError(error) {
-    return {
-      success: false,
-      message: error.message || 'Error de autenticación'
-    };
-  }
-}
-```
-
-#### 3. Controller (`controllers/`)
-- Coordina Views y UseCases
-- Maneja navegación entre vistas
-- Responde a eventos de usuario
-
-```javascript
-// Ejemplo: auth.controller.js
-class AuthController {
-  constructor({ loginView, loginUseCase, onAuthSuccess }) {
-    this.loginView = loginView;
-    this.loginUseCase = loginUseCase;
-    this.onAuthSuccess = onAuthSuccess;
-    this.init();
-  }
-  
-  init() {
-    this.loginView.onSubmit(async (data) => {
-      await this.handleLogin(data.identifier, data.password);
-    });
-  }
-  
-  async handleLogin(identifier, password) {
-    try {
-      this.loginView.setLoading(true);
-      const result = await this.loginUseCase.execute(identifier, password);
-      this.onAuthSuccess(result.user);
-    } catch (error) {
-      this.loginView.showError(error.message);
-    } finally {
-      this.loginView.setLoading(false);
-    }
-  }
-}
-```
-
-#### 4. UseCase (`usecases/`)
-- Lógica de negocio frontend
-- Validaciones específicas de UI
-- Orquestación de servicios
-
-```javascript
-// Ejemplo: login-user.usecase.js
-class LoginUserUseCase {
-  async execute(identifier, password) {
-    const response = await this.apiService.login(identifier, password);
-    
-    if (this.presenter) {
-      return this.presenter.presentLoginResponse(response);
-    }
-    
-    return response;
-  }
-}
-```
-
-#### 5. Service (`services/`)
-- Comunicación con API backend
-- Manejo de tokens y autenticación
-- Almacenamiento local (localStorage)
-
-```javascript
-// Ejemplo: api.service.js
-class ApiService {
-  async login(identifier, password) {
-    const data = await this.request('/api/auth/login', {
-      method: 'POST',
-      body: JSON.stringify({ identifier, password })
-    });
-    
-    if (data.token) {
-      this.setToken(data.token);
-    }
-    
-    return data;
-  }
-}
-```
+#### 4. Dominio (`domain/calendar/`)
+- Funciones puras (día del año, estado visual, recurrencias). Sin dependencias RN: corren en los 4 proyectos Jest.
 
 ---
 
@@ -390,27 +268,19 @@ HTTP Response
 ### Frontend: User Action → UI Update
 
 ```
-User Action (click, submit)
+User Action (tap, submit)
     ↓
-View (captura evento)
+Screen (captura evento, valida formulario)
     ↓
-Controller (coordina)
+useAuth() / repositorio (login, getProgress, moveTask…)
     ↓
-UseCase (lógica de negocio)
-    ↓
-Service (llamada API)
+ApiClient (axios + JWT; 401 → logout)
     ↓
 Backend API
     ↓
-Service ←
+setState → re-render
     ↓
-UseCase ←
-    ↓
-Presenter (formatea para UI)
-    ↓
-Controller ←
-    ↓
-View (actualiza DOM)
+router.replace/push (navegación expo-router)
 ```
 
 ---
@@ -421,7 +291,7 @@ View (actualiza DOM)
 
 #### Backend
 
-**1. Crear el Service Method** (`services/user.service.js`)
+**1. Crear el Service Method** (`services/user.service.ts`)
 ```javascript
 async resetPassword(email) {
   const user = await this._findUserByEmail(email);
@@ -436,7 +306,7 @@ async resetPassword(email) {
 }
 ```
 
-**2. Crear el UseCase** (`usecases/reset-password.usecase.js`)
+**2. Crear el UseCase** (`usecases/reset-password.usecase.ts`)
 ```javascript
 class ResetPasswordUseCase {
   async execute({ email }) {
@@ -446,7 +316,7 @@ class ResetPasswordUseCase {
 }
 ```
 
-**3. Crear el Presenter** (`presenters/auth.presenter.js`)
+**3. Crear el Presenter** (`presenters/auth.presenter.ts`)
 ```javascript
 presentResetPassword(message) {
   return {
@@ -456,7 +326,7 @@ presentResetPassword(message) {
 }
 ```
 
-**4. Actualizar el Controller** (`controllers/auth.controller.js`)
+**4. Actualizar el Controller** (`controllers/auth.controller.ts`)
 ```javascript
 async resetPassword(req, res) {
   try {
@@ -476,60 +346,19 @@ router.post('/reset-password', (req, res) =>
 );
 ```
 
-#### Frontend
+#### Frontend (pantalla + repositorio)
 
-**1. Crear la View** (`views/reset-password.view.js`)
-```javascript
-class ResetPasswordView {
-  constructor(elements) {
-    this.container = elements.container;
-    this.form = elements.form;
-    this.emailInput = elements.emailInput;
-  }
-  
-  // ... métodos show, hide, getFormData, etc.
-}
-```
+**1. Nueva pantalla** (`src/screens/reset-password-screen.tsx` + ruta en `app/`):
+componente con `Field` + `PrimaryButton`, validación local y llamada al repositorio;
+errores en estado local, éxito con `router.replace(...)`.
 
-**2. Crear el UseCase** (`usecases/reset-password.usecase.js`)
-```javascript
-class ResetPasswordUseCase {
-  async execute(email) {
-    const response = await this.apiService.resetPassword(email);
-    return this.presenter.presentResetResponse(response);
-  }
-}
-```
+**2. Método en el repositorio** (`infrastructure/auth/auth.repository.ts`):
+`resetPassword(email)` → `apiClient.post('/api/auth/reset', { email })`.
+Sin lógica de negocio: mapea el endpoint.
 
-**3. Actualizar el Controller** (`controllers/auth.controller.js`)
-```javascript
-async handleResetPassword(email) {
-  try {
-    const result = await this.resetPasswordUseCase.execute(email);
-    this.resetView.showMessage(result.message);
-  } catch (error) {
-    this.resetView.showError(error.message);
-  }
-}
-```
-
-**4. Agregar al HTML** (`index.html`)
-```html
-<div id="reset-section" class="auth-container" style="display: none;">
-  <form id="reset-form">
-    <input type="email" id="reset-email" required>
-    <button type="submit">Enviar</button>
-  </form>
-</div>
-```
-
-**5. Actualizar app-refactored.js**
-```javascript
-const resetView = new ResetPasswordView({...});
-const resetUseCase = new ResetPasswordUseCase(...);
-
-// Agregar listeners y navegación
-```
+**3. Tests** (`frontend/__tests__/`): render + validación + navegación con
+`expo-router` y `useAuth` mockeados; `axios` mockeado (ver `helpers/projects.ts`
+para el alcance por proyecto: UI solo en android/ios).
 
 ---
 
@@ -538,29 +367,29 @@ const resetUseCase = new ResetPasswordUseCase(...);
 ### Backend: Estructura Completa de Auth
 
 ```
-routes/auth.js
+routes/auth.ts
   ↓
-controllers/auth.controller.js
-  ├─ register() → usecases/register-user.usecase.js
-  └─ login() → usecases/login-user.usecase.js
+controllers/auth.controller.ts
+  ├─ register() → usecases/register-user.usecase.ts
+  └─ login() → usecases/login-user.usecase.ts
                 ↓
-          services/user.service.js
+          services/user.service.ts
                 ↓
-          models/database.js
+          models/database.ts
                 ↓
-          presenters/auth.presenter.js
+          presenters/auth.presenter.ts
 ```
 
-### Frontend: Estructura Completa de Auth
+### Frontend: Estructura Completa de Auth (Expo)
 
 ```
-index.html (Views)
-  ↓
-app-refactored.js
-  ├─ LoginView → AuthController → LoginUserUseCase → ApiService
-  └─ RegisterView → AuthController → RegisterUserUseCase → ApiService
-                    ↓
-              AuthPresenter (formatea respuesta)
+app/login.tsx → screens/login-screen.tsx
+    ↓
+useAuth().login() (contexts/auth-context.tsx)
+    ↓
+AuthRepository.login() → ApiClient (axios + JWT en secure-store)
+    ↓
+POST /api/auth/login → router.replace('/calendar')
 ```
 
 ---
@@ -577,9 +406,8 @@ app-refactored.js
 
 ### ❌ DON'Ts
 
-- **No mezclar lógica de negocio en controllers**
-- **No acceder directamente al DOM desde UseCases o Services**
-- **No hacer llamadas HTTP desde Views**
+- **No mezclar lógica de negocio en pantallas ni contextos**
+- **No hacer llamadas HTTP fuera de `ApiClient`/repositorios**
 - **No duplicar validaciones** entre capas (cada una tiene las suyas)
 - **No crear dependencias circulares** entre módulos
 
