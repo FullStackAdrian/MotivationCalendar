@@ -80,16 +80,37 @@ The repository intentionally does not use `npm test` as its only CI criterion. T
 
 ```bash
 npm run lint
-npm test
+npm run test:unit
 npm run test:integration
 npm run test:frontend
 npm run test:coverage
 npm audit --audit-level=high
 ```
 
+`npm test` corre unitarias + integración juntas (útil en local con la BD levantada).
+En CI se separan en `test:unit` + `test:integration` para evitar la duplicación.
+
+### Cómo correr los tests localmente (Postgres)
+
+```bash
+# Levanta Postgres para tests (docker-compose.yml con puerto mapeado al host)
+# y crea la BD motivation_calendar_test si no existe.
+npm run test:db:up
+
+npm test              # unitarias + integración
+npm run test:unit     # solo unitarias
+npm run test:integration  # solo integración (necesita Postgres)
+npm run test:coverage # gates en .c8rc.json + informe en coverage/
+```
+
+`test/helpers/test-env.ts` fija `DATABASE_URL` por defecto a
+`postgres://postgres:postgres@localhost:5432/motivation_calendar_test` si no hay
+`DATABASE_URL` en el entorno. Si tu 5432 está ocupado, pon `POSTGRES_PORT=5433`
+en tu `.env` (ver `.env.example`) y exporta un `DATABASE_URL` acorde.
+
 `test/integration/api.test.js` exercises the HTTP API against PostgreSQL, including registration, duplicate conflicts, login, authentication failures, user isolation, single-day updates, bulk updates, persistence after reconnecting to the database, and deletion.
 
-Coverage output is uploaded by GitHub Actions as the `test-coverage` artifact. The initial pipeline deliberately reports coverage rather than imposing an artificial 100% threshold; a backend-critical threshold can be introduced once the baseline is established.
+Coverage output is uploaded by GitHub Actions as the `test-coverage` artifact (`coverage/` con `test-coverage.txt` + `lcov.info`). Los gates están en `.c8rc.json` (`lines/functions/statements: 80`, `branches: 75`, `all: true`, `perFile: true`): un archivo backend sin cubrir hace fallar el gate aunque el global aguante. Estado actual: el gate falla en 6 archivos (`server.ts`, `domain/kanban.ts`, `domain/services/kanban.service.ts`, `repositories/sequelize-task.repository.ts`, `security/token-provider.ts`, `schemas/login-user.schema.ts`) — es la hit-list del siguiente PR (bloque C).
 
 ## Project Structure
 
