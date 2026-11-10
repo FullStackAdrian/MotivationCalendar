@@ -330,21 +330,23 @@ descargado arranca; export Pages sin `localhost:3000`; CI+Doker verdes.
 
 ## BETA-5 — Checklist de salida beta (`chore/beta-5-beta-checklist`)
 
+> Hecho 2026-11-11: lint OK, unit 126/126, integración 32/32 (incl. seeder), backend cobertura 99.4/89.6/99.4 gate verde, Expo coverage exit 0, typecheck OK, smoke OK, audit high exit 0. E2E happy path (register → calendar → kanban + crear pizarra) verde; único error de consola el #418 documentado. P.6: sin refresh rotation en la beta (documentado en Readme).
+
 Evidencia: `npm audit --audit-level=high` → pasa con **6 moderate**
 restantes; `test:unit` 126/126 verde; seguridad: `JWT_SECRET` mínimo 32 en
 prod OK, bcrypt cost 10 OK, `sync()` create-only OK, `.env` no versionado
 OK. Quedan decisiones/documentación, no bloqueantes de código.
 
-- [ ] **B5.1** `Readme.md`: sección "Beta" (qué incluye/no incluye,
+- [x] **B5.1** `Readme.md`: sección "Beta" (qué incluye/no incluye,
       cómo desplegar, variables requeridas, límites conocidos:
       sin refresh-token, JWT 30d).
-- [ ] **B5.2** Runbook mínimo: backup/restore Postgres del volumen,
+- [x] **B5.2** Runbook mínimo: backup/restore Postgres del volumen,
       rotación `JWT_SECRET`, lectura de logs, healthcheck.
-- [ ] **B5.3** Decidir P.6 (refresh rotation) como scope aparte sí/no;
+- [x] **B5.3** Decidir P.6 (refresh rotation) como scope aparte sí/no;
       si no, dejarlo fuera de la beta por escrito.
-- [ ] **B5.4** Seeder demo idempotente solo staging tras flag (P.4, opcional
+- [x] **B5.4** Seeder demo idempotente solo staging tras flag (P.4, opcional
       para beta si hace falta demo).
-- [ ] **B5.5** Puerta final: `lint` + `test:unit` + `test:integration` +
+- [x] **B5.5** Puerta final: `lint` + `test:unit` + `test:integration` +
       `test:frontend` + `test:coverage` + `audit --audit-level=high` +
       flujo Playwright feliz (register→login→calendar→kanban) sin errores
       de consola salvo favicon ya corregido.

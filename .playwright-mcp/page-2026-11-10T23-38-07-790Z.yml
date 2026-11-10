@@ -1,0 +1,43 @@
+- generic [ref=e195]:
+  - generic [ref=e196]:
+    - generic [ref=e197]:
+      - generic [ref=e198]: Kanban
+      - generic [ref=e199]: Organiza el trabajo sin perder de vista el día.
+    - generic [ref=e200]:
+      - generic [ref=e201] [cursor=pointer]: Calendario
+      - generic [ref=e203] [cursor=pointer]: Salir
+  - generic [ref=e205]:
+    - generic [ref=e206]:
+      - generic [ref=e207]: Pizarra
+      - generic [active] [ref=e208] [cursor=pointer]: Nueva pizarra
+      - generic [ref=e235]: Beta board
+    - generic [ref=e210]:
+      - generic [ref=e211] [cursor=pointer]: Nuevo estado
+      - generic [ref=e239] [cursor=pointer]: Nueva tarea
+      - generic [ref=e214] [cursor=pointer]: Archivo
+  - generic [ref=e217]:
+    - generic [ref=e240]:
+      - generic [ref=e241]:
+        - generic [ref=e243]: Todo
+        - generic [ref=e244]: "0"
+        - generic [ref=e245]: •••
+      - generic [ref=e246]: Sin tareas
+    - generic [ref=e249]:
+      - generic [ref=e250]:
+        - generic [ref=e252]: En progreso
+        - generic [ref=e253]: "0"
+        - generic [ref=e254]: •••
+      - generic [ref=e255]: Sin tareas
+    - generic [ref=e258]:
+      - generic [ref=e259]:
+        - generic [ref=e261]: Pausa
+        - generic [ref=e262]: "0"
+        - generic [ref=e263]: •••
+      - generic [ref=e264]: Sin tareas
+    - generic [ref=e267]:
+      - generic [ref=e268]:
+        - generic [ref=e270]: Done
+        - generic [ref=e271]: "0"
+        - generic [ref=e272]: •••
+      - generic [ref=e273]: Sin tareas
+  - generic [ref=e218]: Pulsa una tarjeta para avanzar al siguiente estado.

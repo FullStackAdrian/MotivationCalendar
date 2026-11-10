@@ -14,6 +14,7 @@
     "test:db:up": "sh scripts/test-db-up.sh",
     "test:coverage": "mkdir -p coverage && npx c8 node --import=tsx --test --test-concurrency=1 --test-timeout=30000 test/*.test.ts test/integration/*.test.ts > coverage/test-coverage.txt 2>&1 && npx c8 check-coverage >> coverage/test-coverage.txt 2>&1",
     "lint": "npm run typecheck && node scripts/check-js-syntax.js",
+    "seed:demo": "tsx scripts/seed-demo.ts",
     "test:frontend": "node scripts/frontend-smoke-expo.js",
     "test:watch": "node --import=tsx --test --watch",
     "install:all": "npm install"
