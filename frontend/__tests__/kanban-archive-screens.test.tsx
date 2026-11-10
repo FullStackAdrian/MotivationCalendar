@@ -58,6 +58,19 @@ describeNative('KanbanScreen', () => {
     expect(getByText('Nueva pizarra')).toBeTruthy();
   });
 
+  it('renders markup in board names as literal text (backend stores it raw, render escapes it)', async () => {
+    const evil = '<script>alert(1)</script>';
+    const board = { id: 'b1', name: evil, columns: [], tasks: [] };
+    http().get.mockImplementation((url: string) => {
+      if (url === '/api/kanban/boards') return Promise.resolve({ data: [board] });
+      if (url === '/api/kanban/boards/b1') return Promise.resolve({ data: board });
+      return Promise.resolve({ data: [] });
+    });
+    const { findByText } = render(<KanbanScreen />);
+    // Si el render interpretara el markup, este texto literal no existiría.
+    expect(await findByText(evil)).toBeTruthy();
+  });
+
   it('creates a board from the modal', async () => {
     http().get.mockResolvedValue({ data: [] });
     http().post.mockResolvedValue({ data: { id: 'b1', name: 'Sprint', columns: [] } });

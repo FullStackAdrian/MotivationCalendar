@@ -8,7 +8,9 @@ import {
   createColumn,
   createTask,
   getNextOccurrenceDate,
+  MAX_COLUMN_NAME,
   moveColumn,
+  normalizeName,
   validateRecurrence
 } from '../kanban';
 import type { BoardRepository } from '../repositories/board.repository';
@@ -121,6 +123,8 @@ export class KanbanService {
     for (const key of allowed) {
       if (data[key] !== undefined) patch[key] = data[key] as never;
     }
+    // BETA-2: el nombre no puede colarse sin validar (límite 80 de la BD).
+    if (patch.name !== undefined) patch.name = normalizeName(patch.name, MAX_COLUMN_NAME);
     return this.columnRepository.update(columnId, patch);
   }
 
