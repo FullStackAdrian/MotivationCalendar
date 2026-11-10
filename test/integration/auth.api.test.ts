@@ -1,11 +1,11 @@
-import './helpers/test-env';
+import '../helpers/test-env';
 import type { AddressInfo } from 'node:net';
 import type { Server } from 'node:http';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import express from 'express';
-import authRoutes from '../backend/infrastructure/routes/auth';
-import { closeDatabase, sequelize } from '../backend/infrastructure/models/database';
+import authRoutes from '../../backend/infrastructure/routes/auth';
+import { closeDatabase, sequelize } from '../../backend/infrastructure/models/database';
 
 // El login consulta la tabla `users`: crear el esquema si no existe para no
 // depender del orden de ejecución ni de que la BD de test esté sincronizada.

@@ -1,11 +1,11 @@
-import './helpers/test-env';
+import '../helpers/test-env';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 // Puerto fijo libre: config.ts hace `Number(PORT) || 3000`, así que '0' no sirve.
-import './helpers/test-server-env';
-import { startServer } from '../backend/server';
-import { closeDatabase } from '../backend/infrastructure/models/database';
+import '../helpers/test-server-env';
+import { startServer } from '../../backend/server';
+import { closeDatabase } from '../../backend/infrastructure/models/database';
 
 process.env.JWT_SECRET = process.env.JWT_SECRET || 'test-secret';
 

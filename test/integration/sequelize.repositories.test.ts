@@ -1,4 +1,4 @@
-import './helpers/test-env';
+import '../helpers/test-env';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
@@ -6,18 +6,18 @@ import {
   createUser,
   sequelize,
   UserModel
-} from '../backend/infrastructure/models/database';
+} from '../../backend/infrastructure/models/database';
 import {
   BoardMemberModel,
   BoardModel,
   ColumnModel,
   TaskModel,
   TaskOccurrenceModel
-} from '../backend/infrastructure/models/kanban.database';
-import { SequelizeBoardRepository } from '../backend/infrastructure/repositories/sequelize-board.repository';
-import { SequelizeColumnRepository } from '../backend/infrastructure/repositories/sequelize-column.repository';
-import { SequelizeTaskRepository } from '../backend/infrastructure/repositories/sequelize-task.repository';
-import { SequelizeUserRepository } from '../backend/infrastructure/repositories/sequelize-user.repository';
+} from '../../backend/infrastructure/models/kanban.database';
+import { SequelizeBoardRepository } from '../../backend/infrastructure/repositories/sequelize-board.repository';
+import { SequelizeColumnRepository } from '../../backend/infrastructure/repositories/sequelize-column.repository';
+import { SequelizeTaskRepository } from '../../backend/infrastructure/repositories/sequelize-task.repository';
+import { SequelizeUserRepository } from '../../backend/infrastructure/repositories/sequelize-user.repository';
 
 const boards = new SequelizeBoardRepository();
 const columns = new SequelizeColumnRepository();

@@ -67,18 +67,28 @@
 
 ### A.5 — Hacer hermética la suite "unit" (nuevo)
 
-- [ ] **A.5.1** `test/routes.auth.test.ts` (etiquetado como unit) **depende de Postgres real**: el login abre
-      el pool y, sin BD, devuelve **500 en vez de 401** → `not ok` (test 77/78). Decidir: moverlo a
-      `test/integration/` o aislar la ruta de BD con inyección de repositorio/mock.
-- [ ] **A.5.2** Revisar el resto de `test/*.test.ts` por la misma dependencia (grep de `sequelize`/`pg`).
-      Un test "unit" no debe requerir BD: si la requiere, no es unit.
-- [ ] **A.5.3** Añadir **timeout de test runner** (`--test-timeout=30000`) para que falle rápido en vez
-      de acumular esperas: el pool de Sequelize (`acquire: 30000`, `database.ts:23`) hace que **cada**
-      operación sin BD espere 30s → la suite unitaria sola no terminó en 10 minutos.
-- [ ] **A.5.4** En `NODE_ENV=test`, bajar `pool.acquire` (p.ej. a 3000ms) y desactivar reintentos:
-      fallo rápido y mensaje claro de "levantar la BD (A.1)".
-- [ ] **A.5.5** Documentar en el error qué falta: si `ECONNREFUSED` en 5432, imprimir
-      "Postgres no disponible → `npm run test:db:up`".
+- [x] **A.5.1** `test/routes.auth.test.ts` (etiquetado como unit) **dependía de Postgres real** → movido a
+      `test/integration/auth.api.test.ts`. Igual para `sequelize.repositories`, `kanban.routes.errors`,
+      `server.start` y la parte con BD de `database.models` (solo quedan en `test/` los 3 tests herméticos:
+      esquema, validadores, campo inválido). Decisión: mover, no mockear (el composition root de
+      `routes/auth.ts:13` instanciaría igual los casos de uso reales).
+- [x] **A.5.2** Revisados `test/*.test.ts` por dependencia de BD (grep `sequelize|sync|initializeDatabase`):
+      `progress.routes`, `server.behavior`, `server`, `coverage.edge` (salvo health-200), etc. son herméticos
+      y se quedan. `coverage.edge` pasó a asertar CORS sobre ruta 404 (el health 200 con BD lo cubre
+      `test/integration/api.test.ts`).
+- [x] **A.5.3** Añadido **timeout de test runner** (`--test-timeout=10000` en `test:unit`,
+      `30000` en `test`/`test:integration`/`test:coverage`).
+- [x] **A.5.4** En `NODE_ENV=test`, `pool.acquire` 5000ms (overridable vía `TEST_ACQUIRE_TIMEOUT`) y
+      `retry.max: 1` (`backend/infrastructure/models/database.ts`). Cubierto por `test/db-config.test.ts`.
+- [x] **A.5.5** Hint accionable ante `ECONNREFUSED`/5432/timeout: `formatDatabaseError()` +
+      `isDatabaseUnavailableError()` en `database.ts` (usado en `initializeDatabase`) y pre-check
+      fail-fast `scripts/check-db.js` (solo `test:integration`/`test:coverage`, nunca `test:unit`).
+      Cubierto por `test/db-error-hint.test.ts`.
+
+> Estado cierre A.5 (2026-11-10, rama `chore/testing-a5-hermetic-units`): `test:unit` hermético 126/126
+> en ~13s con `DATABASE_URL` a puerto cerrado; `test:integration` sin BD falla en ~0.3s con el hint;
+> con BD `npm test` 156/156 y cobertura **99.36% stmts · 89.57% branches · 99.35% funcs** (gate per-file verde).
+> CI añade job `unit-hermetic` (sin service Postgres, URL a puerto cerrado) como guard del criterio.
 
 **Criterio de aceptación:** `npm test` sin BD termina en <1 min con fallos claros (no cuelgos);
 con BD, `npm test` y `npm run test:coverage` en verde local.

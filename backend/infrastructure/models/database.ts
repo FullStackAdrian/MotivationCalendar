@@ -17,11 +17,43 @@ import type { ProgressStatus, User } from '../../domain/types';
 const databaseUrl = process.env.DATABASE_URL ||
   `postgres://${process.env.DB_USER || 'postgres'}:${process.env.DB_PASSWORD || 'postgres'}@${process.env.DB_HOST || 'localhost'}:${process.env.DB_PORT || '5432'}/${process.env.DB_NAME || 'motivation_calendar'}`;
 
+// A.5.4: en test el pool debe fallar rápido (no 30s por operación sin BD).
+// Overridable vía TEST_ACQUIRE_TIMEOUT para runners lentos de CI.
+const isTestEnv = process.env.NODE_ENV === 'test';
+const acquireTimeout = Number(process.env.TEST_ACQUIRE_TIMEOUT) || (isTestEnv ? 5000 : 30000);
+
 export const sequelize = new Sequelize(databaseUrl, {
   dialect: 'postgres',
   logging: config.nodeEnv === 'development' ? console.log : false,
-  pool: { max: 10, min: 0, acquire: 30000, idle: 10000 }
+  pool: { max: 10, min: 0, acquire: acquireTimeout, idle: 10000 },
+  retry: { max: isTestEnv ? 1 : 3 }
 });
+
+/** A.5.5: detecta errores por Postgres caído (ECONNREFUSED/5432/timeout de pool). */
+export function isDatabaseUnavailableError(error: unknown): boolean {
+  const code = (error as NodeJS.ErrnoException)?.code ?? '';
+  const parentMessage = (error as { parent?: Error })?.parent?.message ?? '';
+  const message = error instanceof Error
+    ? `${error.message} ${code} ${parentMessage}`
+    : String(error);
+  return /ECONNREFUSED|ENOTFOUND|ConnectionAcquireTimeout|ConnectionRefused|5432/i.test(message);
+}
+
+/**
+ * A.5.5: ante Postgres caído, conserva el mensaje original y añade el hint
+ * accionable (`npm run test:db:up`). Cualquier otro error se devuelve intacto.
+ */
+export function formatDatabaseError(error: unknown): Error {
+  const original = error instanceof Error ? error : new Error(String(error));
+  if (!isDatabaseUnavailableError(original)) return original;
+  if (original.message.includes('npm run test:db:up')) return original;
+  const hinted = new Error(
+    `${original.message}\nPostgres no disponible → npm run test:db:up (o \`sh scripts/test-db-up.sh\`)`
+  );
+  (hinted as NodeJS.ErrnoException).code = (original as NodeJS.ErrnoException).code;
+  (hinted as Error & { cause?: unknown }).cause = original;
+  return hinted;
+}
 
 export class UserModel extends Model<InferAttributes<UserModel>, InferCreationAttributes<UserModel>> {
   declare id: CreationOptional<string>;
@@ -95,12 +127,17 @@ UserModel.hasMany(ProgressModel, { foreignKey: 'userId', as: 'progress', onDelet
 ProgressModel.belongsTo(UserModel, { foreignKey: 'userId' });
 
 export async function initializeDatabase(): Promise<void> {
-  await sequelize.authenticate();
-  console.log('Conexión a PostgreSQL establecida correctamente');
+  try {
+    await sequelize.authenticate();
+    console.log('Conexión a PostgreSQL establecida correctamente');
 
-  // `sync()` only creates missing tables and is safe for startup in all environments.
-  // Schema-altering migrations can be introduced later without coupling startup to them.
-  await sequelize.sync();
+    // `sync()` only creates missing tables and is safe for startup in all environments.
+    // Schema-altering migrations can be introduced later without coupling startup to them.
+    await sequelize.sync();
+  } catch (error) {
+    // A.5.5: hint accionable cuando Postgres no está levantado.
+    throw formatDatabaseError(error);
+  }
 }
 
 export async function createUser(username: string, email: string, hashedPassword: string): Promise<User> {
