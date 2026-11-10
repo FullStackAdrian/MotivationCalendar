@@ -85,5 +85,14 @@ jobs:
         run: npm run typecheck
       - name: TDD unit and component tests
         run: npm test
+      - name: Coverage
+        run: npm run test:coverage
+      - name: Upload frontend coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-coverage
+          path: frontend/coverage/
+          if-no-files-found: warn
       - name: Metro web export
         run: npm run export:web

@@ -142,36 +142,39 @@ con BD, `npm test` y `npm run test:coverage` en verde local.
 
 ## Bloque E — Tests y medición para el frontend Expo (hoy 0% medido)
 
-- [ ] **E.1** Activar cobertura en `frontend/package.json`:
-      `test:coverage`: `jest --coverage --coverageProvider=v8` + bloque `coverageThreshold`
-      (inicial humilde: `global: { statements: 50, branches: 40, functions: 50, lines: 50 }`)
-      y `collectCoverageFrom`: `src/**/*.{ts,tsx}`, `app/**/*.{ts,tsx}`, excluyendo `_layout` si hace falta.
-- [ ] **E.2** Paso en CI (job `frontend-expo`): `npm run test:coverage` + `actions/upload-artifact` con
-      `frontend/coverage/`.
-- [ ] **E.3** Tests de **lógica** ya existente sin RN: ampliar `frontend/__tests__/` con el resto de
-      `src/domain/**` (puro, corre en los 4 proyectos de `jest-expo/universal`).
-- [ ] **E.4** Tests de **estado/contexto**: `src/contexts/auth-context.tsx` — login/logout, persistencia
-      del JWT con `expo-secure-store` (mock del módulo), refresh/decodificación con `jwt-decode`,
-      expiración de token. *(Es lo que más se romperá al arrancar en Android.)*
-- [ ] **E.5** Tests de **hooks**: `src/hooks/use-responsive.ts` (breakpoints, orientación).
-- [ ] **E.6** Tests de **componentes/pantallas** con `@testing-library/react-native` (ya instalado, sin usar):
-      `src/components/**`, `src/screens/**`, y rutas de `app/` (`login`, `register`, `calendar`, `kanban`).
-      Mínimo: render, validación de formulario, navegación tras login.
-- [ ] **E.7** Test de **api-client / infraestructura** (`src/infrastructure/**`): base URL configurable
-      (sin `localhost` hardcodeado → `10.0.2.2` en emulador Android), manejo de 401 → logout.
-- [ ] **E.8** Mocks de red (`axios`) para no depender del backend en los tests de UI.
+- [x] **E.1** Cobertura en `frontend/package.json`: `test:coverage` (`--coverage --coverageProvider=v8`)
+      + `coverageThreshold` exigente `global: { statements: 70, branches: 70, functions: 75, lines: 70 }`
+      y `collectCoverageFrom`: `src/**`, `app/**` (medido: 70.8/75.7/77.4).
+- [x] **E.2** CI (`frontend-expo`): `npm run test:coverage` + artifact `frontend-coverage`.
+- [x] **E.3** Dominio ampliado (`calendar-domain`: bisiestos, `partial`/`miss`).
+- [x] **E.4** `auth-context` (hydrate/login/register/logout, expiración, token anónimo/malformado, fuera de provider)
+      + `token-storage` (SecureStore vs localStorage). Nota: no hay refresh en el código actual; se testea
+      expiración vía `exp` en su lugar.
+- [x] **E.5** `use-responsive` (mobile/tablet/desktop, bordes sm/md/lg, compact). Solo nativo (ver nota E.6).
+- [x] **E.6** RTL: `components` (botones, Field, Badge, header, Icon), pantallas `login/register` (validación,
+      errores, navegación), `calendar` (stats, error, ciclo de estados, pasado bloqueado), `kanban` (crear
+      pizarra/columna/tarea, mover tarjeta, errores, logout), `archive` (vacío, lista, error, cambio de board),
+      rutas `app/` (re-exports, Redirect según sesión, layout). **Nota de alcance**: `jest-expo/universal`
+      ejecuta en 4 proyectos pero web/node no soportan UI (queries/eventos tocan el puente nativo):
+      los tests UI solo corren en android/ios (`__tests__/helpers/projects.ts`); la cobertura fusionada
+      los cubre igual.
+- [x] **E.7** `api-client`: `defaultBaseUrl()` (`EXPO_PUBLIC_API_URL`, `10.0.2.2` en Android) + 401 → `clearAuth`.
+      Repos `calendar`/`kanban` mapean endpoints.
+- [x] **E.8** `axios` mockeado por fichero (instancia `__instance`); cero red en UI.
 
-**Criterio de aceptación:** cobertura Expo medida en CI con umbral que sube con el tiempo; ≥1 test por pantalla.
+**Criterio de aceptación:** cobertura Expo medida en CI (70/70/75/70, real 70.8/75.7/77.4); ≥1 test por pantalla. ✅
 
 ---
 
 ## Bloque F — Limpieza de deuda relacionada
 
-- [ ] **F.1** Eliminar del root `package.json` el script `test:frontend` si D.1.Opción 1 se acepta.
-- [ ] **F.2** Revisar `scripts/security-check.js` y `scripts/check-js-syntax.js`: si apuntan a
-      `frontend/assets/js`, actualizarlos al código que exista.
-- [ ] **F.3** Documentar la estrategia de tests en `ARCHITECTURE.md` (qué capa se testea con qué tipo).
-- [ ] **F.4** Decidir destino de `DEPLOYMENT_GUIDE.md` (borrado pendiente en working tree).
+- [x] **F.1** `test:frontend` se **conserva** a propósito: tras D.2 valida la app Expo (no el legacy),
+      así que el paso de CI y su nombre siguen teniendo sentido.
+- [x] **F.2** `security-check.js` y `check-js-syntax.js` no referencian `frontend/assets/js` (verificado por grep);
+      sin cambios necesarios.
+- [x] **F.3** Tabla de estrategia de tests en `ARCHITECTURE.md` (sustituye ejemplos obsoletos del vanilla).
+- [x] **F.4** `DEPLOYMENT_GUIDE.md` eliminado (describía el deploy del vanilla a Pages; sustituido por el export
+      Expo en `deploy-pages.yml`).
 
 ---
 

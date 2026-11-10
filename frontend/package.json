@@ -9,6 +9,7 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "test": "jest --runInBand",
+    "test:coverage": "jest --coverage --coverageProvider=v8 --runInBand",
     "test:watch": "jest --watch",
     "typecheck": "tsc --noEmit",
     "export:web": "expo export --platform web"
@@ -49,6 +50,22 @@
     ],
     "transformIgnorePatterns": [
       "node_modules/(?!((jest-)?react-native|@react-native(-community)?|expo(nent)?|@expo(nent)?/.*))"
-    ]
+    ],
+    "collectCoverageFrom": [
+      "src/**/*.{ts,tsx}",
+      "app/**/*.tsx"
+    ],
+    "coveragePathIgnorePatterns": [
+      "/node_modules/",
+      "/dist/"
+    ],
+    "coverageThreshold": {
+      "global": {
+        "statements": 70,
+        "branches": 70,
+        "functions": 75,
+        "lines": 70
+      }
+    }
   }
 }
