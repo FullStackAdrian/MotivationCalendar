@@ -249,3 +249,142 @@ test('synchronizeBoard archives stale non-weekly tasks using plain-object dates'
   assert.ok(next);
   assert.equal(next.columnId, 'c1');
 });
+
+test('isMember and listBoards delegate to the board repository', async () => {
+  const deps = makeDeps({ boards: baseBoard(), members: [{ boardId: 'b1', userId: OWNER }] });
+  const service = new KanbanService(deps);
+  assert.equal(await service.isMember('b1', OWNER), true);
+  assert.equal(await service.isMember('b1', STRANGER), false);
+  assert.deepEqual(await service.listBoards(OWNER), []);
+});
+
+test('getBoard guards access and reports missing boards', async () => {
+  const deps = makeDeps({ boards: baseBoard(), members: [{ boardId: 'b1', userId: OWNER }], columns: baseColumns(), tasks: [] });
+  const service = new KanbanService(deps);
+  await assert.rejects(service.getBoard('b1', STRANGER), /No autorizado/);
+  deps.boardRepository.findByIdWithDetails = async () => null;
+  await assert.rejects(service.getBoard('b1', OWNER), /no encontrado/i);
+});
+
+test('addMember requires ownership and an existing user', async () => {
+  const deps = makeDeps({ boards: baseBoard(), members: [], users: [{ id: 'u2' }] });
+  const service = new KanbanService(deps);
+  await assert.rejects(service.addMember('b1', STRANGER, 'u2'), /No autorizado/);
+  await assert.rejects(service.addMember('b1', OWNER, 'ghost'), /Usuario no encontrado/);
+  const member = await service.addMember('b1', OWNER, 'u2');
+  assert.equal(member?.userId, 'u2');
+  assert.equal(member?.role, 'member');
+});
+
+test('createColumn defaults the position to the column count', async () => {
+  const deps = makeDeps({ boards: baseBoard(), members: [{ boardId: 'b1', userId: OWNER }], columns: baseColumns() });
+  const service = new KanbanService(deps);
+  await assert.rejects(service.createColumn('b1', STRANGER, { name: 'X' }), /No autorizado/);
+  const column = await service.createColumn('b1', OWNER, { name: ' Backlog ' });
+  assert.equal(column.position, 3);
+  assert.equal(column.name, 'Backlog');
+});
+
+test('reorderColumn validates the target position and persists the order', async () => {
+  const deps = makeDeps({ boards: baseBoard(), members: [{ boardId: 'b1', userId: OWNER }], columns: baseColumns() });
+  const service = new KanbanService(deps);
+  await assert.rejects(service.reorderColumn('b1', STRANGER, 'c1', 0), /No autorizado/);
+  await assert.rejects(service.reorderColumn('b1', OWNER, 'c1', 99), /posición/i);
+  const reordered = await service.reorderColumn('b1', OWNER, 'c1', 2);
+  assert.deepEqual(reordered.map(column => column.id), ['c2', 'c3', 'c1']);
+  assert.deepEqual(reordered.map(column => column.position), [0, 1, 2]);
+});
+
+test('updateColumn guards access and filters the patch keys', async () => {
+  const deps = makeDeps({ boards: baseBoard(), members: [{ boardId: 'b1', userId: OWNER }], columns: baseColumns() });
+  const service = new KanbanService(deps);
+  await assert.rejects(service.updateColumn('missing', OWNER, { name: 'X' }), /No autorizado/);
+  await assert.rejects(service.updateColumn('c1', STRANGER, { name: 'X' }), /No autorizado/);
+  const updated = await service.updateColumn('c1', OWNER, { name: 'Inbox', wipLimit: 5, position: 9 });
+  assert.equal(updated?.name, 'Inbox');
+  assert.equal(updated?.wipLimit, 5);
+  assert.equal(updated?.position, 0);
+});
+
+test('createTask persists the task with its first occurrence', async () => {
+  const deps = makeDeps({ boards: baseBoard(), members: [{ boardId: 'b1', userId: OWNER }], columns: baseColumns() });
+  const service = new KanbanService(deps);
+  await assert.rejects(service.createTask('b1', STRANGER, { title: 'T', columnId: 'c1' }), /No autorizado/);
+  await assert.rejects(service.createTask('b1', OWNER, { title: 'T', columnId: 'missing' }), /no encontrado/i);
+  const task = await service.createTask('b1', OWNER, { title: ' T ', columnId: 'c1', dueDate: '2026-08-25' });
+  assert.equal(task.title, 'T');
+  assert.equal(deps.store.occurrences.length, 1);
+  assert.equal(deps.store.occurrences[0].date, '2026-08-25');
+});
+
+test('createTask without due date schedules weekly occurrences only', async () => {
+  const deps = makeDeps({ boards: baseBoard(), members: [{ boardId: 'b1', userId: OWNER }], columns: baseColumns() });
+  const service = new KanbanService(deps);
+  await service.createTask('b1', OWNER, { title: 'W', columnId: 'c1', recurrence: { type: 'weekly', days: [2] } });
+  assert.equal(deps.store.occurrences.length, 1);
+  await service.createTask('b1', OWNER, { title: 'P', columnId: 'c1' });
+  assert.equal(deps.store.occurrences.length, 1);
+});
+
+test('nextScheduledDate handles non-weekly and same-day recurrences', () => {
+  const service = new KanbanService(makeDeps({}));
+  assert.equal(service.nextScheduledDate({ type: 'none', days: [] }, '2026-08-25'), null);
+  assert.equal(service.nextScheduledDate({ type: 'weekly', days: [2] }, '2026-08-25'), '2026-08-25');
+  assert.equal(service.nextScheduledDate({ type: 'weekly', days: [3] }, '2026-08-25'), '2026-08-26');
+});
+
+test('moveTaskOccurrence reports unknown columns', async () => {
+  const deps = makeDeps({
+    boards: baseBoard(),
+    members: [{ boardId: 'b1', userId: OWNER }],
+    columns: baseColumns(),
+    tasks: [{ id: 'tw', boardId: 'b1', columnId: 'c1', recurrence: { type: 'weekly', days: [1] }, completedAt: null }],
+    occurrences: [{ id: 'o1', taskId: 'tw', date: '2026-08-25', status: 'todo', columnId: 'c1', completedAt: null }]
+  });
+  const service = new KanbanService(deps);
+  await assert.rejects(service.moveTaskOccurrence('tw', OWNER, 'missing', '2026-08-25'), /no encontrado/i);
+});
+
+test('completeTask requires a Done column', async () => {
+  const columns = baseColumns().filter(column => !column.isDone);
+  const deps = makeDeps({
+    boards: baseBoard(),
+    members: [{ boardId: 'b1', userId: OWNER }],
+    columns,
+    tasks: [{ id: 't1', boardId: 'b1', columnId: 'c1', recurrence: { type: 'none', days: [] }, completedAt: null }]
+  });
+  const service = new KanbanService(deps);
+  await assert.rejects(service.completeTask('t1', OWNER), /Done/i);
+});
+
+test('listArchive guards access and forwards filters', async () => {
+  const deps = makeDeps({
+    boards: baseBoard(),
+    members: [{ boardId: 'b1', userId: OWNER }],
+    columns: baseColumns(),
+    tasks: [{ id: 't1', boardId: 'b1', columnId: 'c1', recurrence: { type: 'none', days: [] }, completedAt: '2026-08-01', archivedAt: '2026-08-02', assigneeId: OWNER }]
+  });
+  const service = new KanbanService(deps);
+  await assert.rejects(service.listArchive('b1', STRANGER), /No autorizado/);
+  assert.equal((await service.listArchive('b1', OWNER)).length, 1);
+  assert.equal((await service.listArchive('b1', OWNER, { assigneeId: STRANGER })).length, 0);
+});
+
+test('synchronizeBoard reuses existing occurrences and falls back to the task column', async () => {
+  const deps = makeDeps({
+    boards: baseBoard(),
+    members: [{ boardId: 'b1', userId: OWNER }],
+    columns: baseColumns(),
+    tasks: [
+      { id: 'tw1', boardId: 'b1', columnId: 'c1', recurrence: { type: 'weekly', days: [2] }, completedAt: null, archivedAt: null },
+      { id: 'tw2', boardId: 'b1', columnId: 'c2', recurrence: { type: 'weekly', days: [2] }, completedAt: null, archivedAt: null }
+    ],
+    occurrences: [{ id: 'o1', taskId: 'tw1', date: '2026-08-25', status: 'todo', columnId: 'c3', completedAt: null }]
+  });
+  const service = new KanbanService(deps);
+  await service.synchronizeBoard('b1', '2026-08-25');
+  assert.equal(deps.store.occurrences.filter(o => o.taskId === 'tw1').length, 1);
+  const created = deps.store.occurrences.find(o => o.taskId === 'tw2');
+  assert.ok(created);
+  assert.equal(created.columnId, 'c2');
+});
