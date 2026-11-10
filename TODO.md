@@ -42,6 +42,19 @@
 
 ---
 
+## 📋 Resultados de la primera ejecución (2026-11-10, local, sin Postgres en 5432)
+
+- **`npm test` (unit + integración): FALLA.**
+  - `test/integration/*` → `ECONNREFUSED` en `localhost:5432` (previsto: contenedor sin puerto publicado).
+  - `test/routes.auth.test.ts:31` → **`500 !== 401`**: sin BD el login devuelve 500 → **los "unit tests"
+    no son herméticos** (ver A.5).
+- **Suite unitaria en solitario (`test/*.test.ts`)**: 77/78 OK y **1 fallo** (el mismo de arriba);
+  **no terminó en 10 minutos** → sin BD cada operación espera los 30s de `pool.acquire` (`database.ts:23`).
+- **Conclusión:** la cobertura "93.62%" solo es válida en CI (con service container). Localmente hoy
+  ni siquiera se puede ejecutar completa. Bloque A es, por tanto, lo primero.
+
+---
+
 ## Bloque A — Entorno de tests (bloqueante para todo lo demás)
 
 - [ ] **A.1** Publicar el puerto 5432 de `motivation-calendar-postgres` en `docker-compose.yml`
@@ -50,9 +63,25 @@
       y documentarlo en `Readme.md` / `README_POSTGRESQL.md` ("Cómo correr los tests localmente").
 - [ ] **A.3** Verificar que `.env.test` (o `test/helpers/test-env.ts`) fija `DATABASE_URL` y que
       `npm test` + `npm run test:coverage` pasan en local con la BD levantada.
-- [ ] **A.4** Confirmar que el run en segundo plano falla/sucede como se prevee y dejarlo verde.
+- [ ] **A.4** ~~Confirmar que el run en segundo plano falla/sucede como se prevee~~ → **HECHO (2026-11-10): falla, ver "Resultados de la primera ejecución" abajo.**
 
-**Criterio de aceptación:** `npm test` y `npm run test:coverage` en verde en local sin tocar nada más.
+### A.5 — Hacer hermética la suite "unit" (nuevo)
+
+- [ ] **A.5.1** `test/routes.auth.test.ts` (etiquetado como unit) **depende de Postgres real**: el login abre
+      el pool y, sin BD, devuelve **500 en vez de 401** → `not ok` (test 77/78). Decidir: moverlo a
+      `test/integration/` o aislar la ruta de BD con inyección de repositorio/mock.
+- [ ] **A.5.2** Revisar el resto de `test/*.test.ts` por la misma dependencia (grep de `sequelize`/`pg`).
+      Un test "unit" no debe requerir BD: si la requiere, no es unit.
+- [ ] **A.5.3** Añadir **timeout de test runner** (`--test-timeout=30000`) para que falle rápido en vez
+      de acumular esperas: el pool de Sequelize (`acquire: 30000`, `database.ts:23`) hace que **cada**
+      operación sin BD espere 30s → la suite unitaria sola no terminó en 10 minutos.
+- [ ] **A.5.4** En `NODE_ENV=test`, bajar `pool.acquire` (p.ej. a 3000ms) y desactivar reintentos:
+      fallo rápido y mensaje claro de "levantar la BD (A.1)".
+- [ ] **A.5.5** Documentar en el error qué falta: si `ECONNREFUSED` en 5432, imprimir
+      "Postgres no disponible → `npm run test:db:up`".
+
+**Criterio de aceptación:** `npm test` sin BD termina en <1 min con fallos claros (no cuelgos);
+con BD, `npm test` y `npm run test:coverage` en verde local.
 
 ---
 
