@@ -67,8 +67,9 @@ test('CORS rejects an origin outside the allow-list', async () => {
 });
 
 test('CORS allows requests without an Origin header', async () => {
-  const response = await request('/api/health');
-  assert.equal(response.status, 200);
+  // Hermético: ruta sin BD (el health 200 con BD lo cubre test/integration/api.test.ts).
+  const response = await request('/some/client-side-route');
+  assert.equal(response.status, 404);
   assert.equal(response.headers.get('x-content-type-options'), 'nosniff');
   assert.equal(response.headers.get('x-frame-options'), 'DENY');
   assert.equal(response.headers.get('referrer-policy'), 'strict-origin-when-cross-origin');

@@ -66,6 +66,28 @@ jobs:
       - name: Security audit
         run: npm audit --audit-level=high
 
+  unit-hermetic:
+    name: Unit hermeticity (no DB)
+    runs-on: ubuntu-latest
+    # Sin services.postgres a propósito: la suite unit debe ser verde sin BD (A.5).
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Unit tests without database
+        run: npm run test:unit
+        env:
+          NODE_ENV: test
+          DATABASE_URL: postgres://postgres:postgres@127.0.0.1:59999/motivation_calendar_test
+          JWT_SECRET: test-secret
+          ALLOWED_ORIGINS: http://localhost:3000
+
   frontend-expo:
     name: Expo / Metro frontend
     runs-on: ubuntu-latest

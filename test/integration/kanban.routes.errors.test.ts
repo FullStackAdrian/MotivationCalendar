@@ -1,4 +1,4 @@
-import './helpers/test-env';
+import '../helpers/test-env';
 import type { AddressInfo } from 'node:net';
 import { once } from 'node:events';
 import { test } from 'node:test';
@@ -8,8 +8,8 @@ process.env.NODE_ENV = 'test';
 process.env.JWT_SECRET = process.env.JWT_SECRET || 'test-secret';
 process.env.ALLOWED_ORIGINS = 'http://localhost:3000';
 
-import app from '../backend/server';
-import { initializeDatabase, closeDatabase, sequelize } from '../backend/infrastructure/models/database';
+import app from '../../backend/server';
+import { initializeDatabase, closeDatabase, sequelize } from '../../backend/infrastructure/models/database';
 
 let server: ReturnType<typeof app.listen>;
 let baseUrl: string;
