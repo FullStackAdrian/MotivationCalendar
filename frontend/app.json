@@ -8,7 +8,7 @@
     "userInterfaceStyle": "light",
     "plugins": ["expo-router", "expo-secure-store"],
     "experiments": { "typedRoutes": true },
-    "web": { "bundler": "metro", "output": "static" },
+    "web": { "bundler": "metro", "output": "static", "favicon": "./assets/favicon.png" },
     "android": { "package": "com.fullstackadrian.motivationcalendar" },
     "ios": { "bundleIdentifier": "com.fullstackadrian.motivationcalendar" }
   }

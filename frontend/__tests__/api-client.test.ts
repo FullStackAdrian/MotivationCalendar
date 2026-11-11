@@ -111,4 +111,39 @@ describe('ApiClient', () => {
     expect(storage.clear).not.toHaveBeenCalled();
     expect(client.getToken()).toBe('t123');
   });
+
+  it('notifies onUnauthorized after clearing the session on 401', async () => {
+    const http = mockInstance();
+    mockedAxios.create.mockReturnValueOnce(http as never);
+    const storage = { get: jest.fn(), set: jest.fn(), clear: jest.fn() };
+    const client = new ApiClient('https://api.example.com', storage as never);
+    const onUnauthorized = jest.fn();
+    client.onUnauthorized = onUnauthorized;
+    await client.setToken('t123');
+    const [, onRejected] = http.interceptors.response.use.mock.calls[0];
+    await expect(onRejected({ response: { status: 401, data: { error: 'Token expirado' } } })).rejects.toBeInstanceOf(ApiError);
+    expect(storage.clear).toHaveBeenCalled();
+    expect(onUnauthorized).toHaveBeenCalled();
+  });
+
+  it('retries idempotent GETs once on network failure', async () => {
+    const http = mockInstance();
+    mockedAxios.create.mockReturnValueOnce(http as never);
+    const storage = { get: jest.fn(), set: jest.fn(), clear: jest.fn() };
+    const client = new ApiClient('https://api.example.com', storage as never);
+    http.get.mockRejectedValueOnce({ message: 'Network Error' });
+    http.get.mockResolvedValueOnce({ data: { ok: true } });
+    await expect(client.get('/api/health')).resolves.toEqual({ ok: true });
+    expect(http.get).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not retry non-idempotent POSTs on network failure', async () => {
+    const http = mockInstance();
+    mockedAxios.create.mockReturnValueOnce(http as never);
+    const storage = { get: jest.fn(), set: jest.fn(), clear: jest.fn() };
+    const client = new ApiClient('https://api.example.com', storage as never);
+    http.post.mockRejectedValueOnce({ message: 'Network Error' });
+    await expect(client.post('/api/auth/login', {})).rejects.toEqual({ message: 'Network Error' });
+    expect(http.post).toHaveBeenCalledTimes(1);
+  });
 });

@@ -38,6 +38,7 @@ function authState(overrides: Partial<ReturnType<typeof useAuth>> = {}): ReturnT
   return {
     user: { id: 'u1', username: 'alice', email: 'a@b.com' },
     loading: false,
+    sessionExpired: false,
     login: jest.fn(),
     register: jest.fn(),
     logout: jest.fn().mockResolvedValue(undefined),
@@ -56,6 +57,19 @@ describeNative('KanbanScreen', () => {
     const { getByText, findByText } = render(<KanbanScreen />);
     await findByText('Organiza el trabajo sin perder de vista el día.');
     expect(getByText('Nueva pizarra')).toBeTruthy();
+  });
+
+  it('renders markup in board names as literal text (backend stores it raw, render escapes it)', async () => {
+    const evil = '<script>alert(1)</script>';
+    const board = { id: 'b1', name: evil, columns: [], tasks: [] };
+    http().get.mockImplementation((url: string) => {
+      if (url === '/api/kanban/boards') return Promise.resolve({ data: [board] });
+      if (url === '/api/kanban/boards/b1') return Promise.resolve({ data: board });
+      return Promise.resolve({ data: [] });
+    });
+    const { findByText } = render(<KanbanScreen />);
+    // Si el render interpretara el markup, este texto literal no existiría.
+    expect(await findByText(evil)).toBeTruthy();
   });
 
   it('creates a board from the modal', async () => {
@@ -109,7 +123,7 @@ describeNative('KanbanScreen', () => {
   it('shows loading errors', async () => {
     http().get.mockRejectedValue(new Error('sin conexión'));
     const { findByText } = render(<KanbanScreen />);
-    expect(await findByText('sin conexión')).toBeTruthy();
+    expect(await findByText('No se pudo conectar con el servidor. Revisa tu conexión.')).toBeTruthy();
   });
 
   it('moves a task to the next column when its card is pressed', async () => {

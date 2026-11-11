@@ -10,9 +10,35 @@ function id(prefix: string): EntityId {
   return `${prefix}_${randomUUID()}`;
 }
 
-function normalizeName(name: unknown): string {
+export const MAX_BOARD_NAME = 120;
+export const MAX_COLUMN_NAME = 80;
+export const MAX_TASK_TITLE = 180;
+export const MAX_DESCRIPTION = 2000;
+
+/**
+ * BETA-2: los ids de pizarra/columna/tarea son UUID de la BD. Un formato
+ * inválido se rechaza con 400 antes de tocar la BD (evita 500 de Postgres).
+ */
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export function assertUuid(value: unknown): string {
+  if (typeof value !== 'string' || !UUID_REGEX.test(value)) throw new Error('Identificador inválido');
+  return value;
+}
+
+export function normalizeName(name: unknown, max = MAX_BOARD_NAME): string {
   if (typeof name !== 'string' || !name.trim()) throw new Error('El nombre es obligatorio');
-  return name.trim();
+  const value = name.trim();
+  if (value.length > max) throw new Error(`El nombre supera el límite de ${max} caracteres`);
+  return value;
+}
+
+/** Descripciones TEXT en BD: se acotan a 2000 por higiene (el payload global ya limita a 100kb). */
+export function normalizeDescription(description: unknown, max = MAX_DESCRIPTION): string | null {
+  if (description === null || description === undefined) return null;
+  if (typeof description !== 'string') throw new Error('La descripción es inválida');
+  if (description.length > max) throw new Error(`La descripción supera el límite de ${max} caracteres`);
+  return description;
 }
 
 export interface BoardDraft extends Omit<Board, 'createdAt' | 'updatedAt'> {
@@ -29,8 +55,8 @@ export function createBoard({ name, ownerId, description = null, color = '#6366f
   const safeColor = typeof color === 'string' ? color : '#6366f1';
   return {
     id: id('board'),
-    name: normalizeName(name),
-    description: (description ?? null) as string | null,
+    name: normalizeName(name, MAX_BOARD_NAME),
+    description: normalizeDescription(description),
     color: safeColor,
     ownerId: ownerId as string,
     columns: []
@@ -52,7 +78,7 @@ export function createColumn({ boardId, name, color = '#64748b', position = 0, i
   return {
     id: id('column'),
     boardId: boardId as string,
-    name: normalizeName(name),
+    name: normalizeName(name, MAX_COLUMN_NAME),
     color: typeof color === 'string' ? color : '#64748b',
     position,
     isDone: Boolean(isDone),
@@ -101,7 +127,7 @@ export function createTask({
   recurrence?: unknown;
 }): Omit<Task, 'id'> & { id: EntityId } {
   if (!boardId || !columnId) throw new Error('La pizarra y el estado son obligatorios');
-  const normalizedTitle = normalizeName(title);
+  const normalizedTitle = normalizeName(title, MAX_TASK_TITLE);
   if (typeof priority !== 'string' || !VALID_PRIORITIES.has(priority)) throw new Error('Prioridad inválida');
   if (effortPoints !== null && (typeof effortPoints !== 'number' || !Number.isInteger(effortPoints) || effortPoints < 1)) throw new Error('Los puntos son inválidos');
   if (estimatedMinutes !== null && (typeof estimatedMinutes !== 'number' || !Number.isInteger(estimatedMinutes) || estimatedMinutes < 1)) throw new Error('La duración estimada es inválida');
@@ -113,7 +139,7 @@ export function createTask({
     boardId: boardId as string,
     columnId: columnId as string,
     title: normalizedTitle,
-    description: (description ?? null) as string | null,
+    description: normalizeDescription(description),
     assigneeId: (assigneeId ?? null) as string | null,
     priority: priority as Task['priority'],
     effortPoints,

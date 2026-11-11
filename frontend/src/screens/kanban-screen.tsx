@@ -6,6 +6,7 @@ import { Icon } from '@/components/icon';
 import { useAuth } from '@/contexts/auth-context';
 import { useResponsive } from '@/hooks/use-responsive';
 import { Board, BoardMember, KanbanRepository, Task } from '@/infrastructure/kanban/kanban.repository';
+import { friendlyAuthError } from '@/screens/auth-error';
 import { theme } from '@/theme';
 
 const repository = new KanbanRepository();
@@ -74,7 +75,7 @@ export default function KanbanScreen() {
         setArchive([]);
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'No se pudo cargar el Kanban');
+      setError(friendlyAuthError(e, 'No se pudo cargar el Kanban'));
       setBoards([]);
     } finally {
       setLoading(false);

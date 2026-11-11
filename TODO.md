@@ -218,6 +218,8 @@ All files                            |   93.62 |    81.51 |   93.11 |   93.62
 
 ## BETA-1 — Seguridad y robustez API (`chore/beta-1-api-hardening`)
 
+> Hecho 2026-11-11: unit 132/132, integración 30/30, cobertura 99.3/89.5/99.4 con gate verde, lint OK.
+
 Evidencia: `POST /api/auth/login` x21 seguidos → 21×`401`, ningún `429`
 (`backend/infrastructure/routes/auth.ts:15-17` sin rate-limit; grep
 `helmet|rate-limit` en `server.ts`/`package.json` = 0). Headers en
@@ -229,18 +231,18 @@ Evidencia: `POST /api/auth/login` x21 seguidos → 21×`401`, ningún `429`
 genérico. `/api/health` expone `environment`; con `NODE_ENV=development`
 (Docker local) el handler CORS devuelve el mensaje interno.
 
-- [ ] **B1.1** Rate-limit en `POST /api/auth/register` y `/login`
+- [x] **B1.1** Rate-limit en `POST /api/auth/register` y `/login`
       (`express-rate-limit`, p. ej. 10/15min por IP; `trust proxy` si hay
       nginx delante). Test del `429`. (Solapa con P.3.)
-- [ ] **B1.2** 404 JSON API-only: catch-all tras las rutas que devuelva
+- [x] **B1.2** 404 JSON API-only: catch-all tras las rutas que devuelva
       `{ error: 'No encontrado' }` en vez del HTML de Express. Test.
-- [ ] **B1.3** Mapear `'Estado no encontrado'` → 404 en `kanban.ts:56-60`
+- [x] **B1.3** Mapear `'Estado no encontrado'` → 404 en `kanban.ts:56-60`
       (o mensaje `'Tablero no encontrado'` que case con la regex). Test:
       `GET boards/:id` inexistente → 404, no 500.
-- [ ] **B1.4** Headers: añadir HSTS (solo prod/tras TLS) + CSP básica o
+- [x] **B1.4** Headers: añadir HSTS (solo prod/tras TLS) + CSP básica o
       documentar por qué no aplican al API-only; mantener `x-powered-by`
       desactivado. Test de headers.
-- [ ] **B1.5** Sanitizar errores: ningún `err.message` interno ni `stack`
+- [x] **B1.5** Sanitizar errores: ningún `err.message` interno ni `stack`
       fuera de `development` (revisar `server.ts:67-73`,
       `auth.controller.ts:83-92`); `/api/health` sin `environment` en
       respuesta (o campo mínimo `status/database`).
@@ -250,6 +252,8 @@ tablero inexistente → 404; `npm test` + `test:coverage` verdes.
 
 ## BETA-2 — Validación de Kanban (`chore/beta-2-kanban-validation`)
 
+> Hecho 2026-11-11: unit 133/133, integración 30/30, cobertura con gate verde, lint OK, Expo kanban 24/24 nativo. Runtime: nombre 5k → 400, UUID inválido → 400.
+
 Evidencia: `POST /api/kanban/boards {"name":"<script>alert(1)</script>"}`
 → `201` con el nombre guardado tal cual (sin `maxlength`; `normalizeName`
 en `backend/domain/kanban.ts:13-15` solo exige no-vacío). Mismo endpoint
@@ -257,20 +261,22 @@ con `name` de 5000 chars → `500 Error interno` (debería 400). Login con
 `identifier: "admin OR 1=1 --"` → `401` correcto (Sequelize parametriza;
 sin inyección). Registro duplicado → `409` correcto.
 
-- [ ] **B2.1** `maxLength` en nombres/descripciones de board/column/task
+- [x] **B2.1** `maxLength` en nombres/descripciones de board/column/task
       (p. ej. name ≤ 120, description ≤ 2000) en `domain/kanban.ts` con
       mensajes 400; verificar que el 5k da 400, no 500.
-- [ ] **B2.2** Política XSS documentada + test: RN `<Text>` y `react-dom`
+- [x] **B2.2** Política XSS documentada + test: RN `<Text>` y `react-dom`
       escapan por defecto (bajo riesgo), pero el backend no debe persistir
       `<script>` sin necesidad — o bien sanitizar/escapar al presentar, o
       documentar "almacenar literal, escapar al render" con test de render.
-- [ ] **B2.3** Revisar resto de `create*`/`update*` de kanban con el mismo
+- [x] **B2.3** Revisar resto de `create*`/`update*` de kanban con el mismo
       patrón (límites + códigos 400/403/404) y tests de cada 500 hallado.
 
 **Aceptación:** nombre 5k → 400; `<script>` con comportamiento definido y
 testeado; ningún `create*` devuelve 500 por entrada larga/vacía.
 
 ## BETA-3 — Expo: guards de auth y UX de error (`chore/beta-3-expo-auth-guards`)
+
+> Hecho 2026-11-11: Expo coverage 196 passed/0 failed (gates 70/70/75/70), typecheck OK, smoke OK. E2E (frontend Docker reconstruido): /calendar, /kanban y /archive sin sesión → /login con 0 errores de consola; favicon 200. #418: ruido de hidratación del export estático bajo fallback SPA (en dev SSR limpio, la app recupera en cliente); documentado, no bloqueante.
 
 Evidencia Playwright (Docker `frontend:8081`): `GET /calendar` y `/kanban`
 **sin sesión** renderizan el shell con error inline
@@ -283,18 +289,18 @@ error #418` en consola tras el login 403. Token expirado real (firmado)
 en 401 sin redirigir ni avisar. Botón deshabilitado con campos vacíos OK;
 credenciales malas muestran `Credenciales inválidas` OK (vía localhost).
 
-- [ ] **B3.1** Guard en rutas protegidas (`calendar/kanban/archive` o
+- [x] **B3.1** Guard en rutas protegidas (`calendar/kanban/archive` o
       layout segment): si `!loading && !user` → `Redirect /login`.
       Tests RTL + smoke Playwright manual.
-- [ ] **B3.2** Sesión expirada: 401/expiración → `clearAuth` + redirect
+- [x] **B3.2** Sesión expirada: 401/expiración → `clearAuth` + redirect
       `/login` + mensaje ("Sesión expirada"), no solo error inline.
-- [ ] **B3.3** No mostrar strings internos de red en UI: mapear
+- [x] **B3.3** No mostrar strings internos de red en UI: mapear
       `No permitido por CORS`/mensajes técnicos a texto genérico
       ("No se pudo conectar…"). (El 403 CORS solo debe verse en dev.)
-- [ ] **B3.4** `favicon.ico` + assets web base; investigar el #418 de
+- [x] **B3.4** `favicon.ico` + assets web base; investigar el #418 de
       hidratación en `expo export --platform web` (repro: login con API
       403) y documentar o corregir.
-- [ ] **B3.5** Resiliencia `ApiClient`: timeout ya 10s; añadir 1 reintento
+- [x] **B3.5** Resiliencia `ApiClient`: timeout ya 10s; añadir 1 reintento
       en GETs idempotentes + estado offline/vacio en calendar/kanban
       (hoy solo error inline). Tests.
 

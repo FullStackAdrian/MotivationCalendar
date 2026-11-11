@@ -113,6 +113,27 @@ describe('AuthProvider', () => {
     await waitFor(() => expect(ref.current?.user).toBeNull());
   });
 
+  it('marks the session expired when the api client reports 401', async () => {
+    const token = VALID_TOKEN;
+    if (Platform.OS === 'web') localStorage.setItem('motivation-calendar.auth-token', token);
+    else secure.getItemAsync.mockResolvedValue(token);
+    const { ref } = await latestValue();
+    expect(ref.current?.user).not.toBeNull();
+    expect(ref.current?.sessionExpired).toBe(false);
+    apiClient.onUnauthorized?.();
+    await waitFor(() => expect(ref.current?.user).toBeNull());
+    expect(ref.current?.sessionExpired).toBe(true);
+  });
+
+  it('clears the expired flag on login', async () => {
+    const { ref } = await latestValue();
+    apiClient.onUnauthorized?.();
+    await waitFor(() => expect(ref.current?.sessionExpired).toBe(true));
+    httpInstance().post.mockResolvedValueOnce({ data: { token: 't1', user: { id: 'u1', username: 'alice', email: 'a@b.com' } } });
+    await ref.current!.login('alice', 'secret123');
+    await waitFor(() => expect(ref.current?.sessionExpired).toBe(false));
+  });
+
   it('throws when used outside the provider', () => {
     const Outside = () => { useAuth(); return null; };
     expect(() => render(<Outside />)).toThrow('useAuth must be used within AuthProvider');
