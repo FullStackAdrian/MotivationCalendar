@@ -1,10 +1,22 @@
-import React from 'react';
+import React, { useContext } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, TextInputProps, View, ViewStyle } from 'react-native';
+import { SafeAreaInsetsContext, SafeAreaView } from 'react-native-safe-area-context';
 import { Icon, IconName } from '@/components/icon';
 import { theme } from '@/theme';
 
 export function Screen({ children, style, dense = false }: { children: React.ReactNode; style?: ViewStyle; dense?: boolean }) {
-  return <View style={[styles.screen, dense && styles.denseScreen, style]}>{children}</View>;
+  const insets = useContext(SafeAreaInsetsContext);
+  const top = insets?.top ?? 0;
+  const bottom = insets?.bottom ?? 0;
+  return (
+    <SafeAreaView
+      testID="screen-safe"
+      edges={['top', 'bottom']}
+      style={[{ paddingTop: Math.max(top, dense ? theme.spacing.lg : theme.spacing.xl), paddingBottom: Math.max(bottom, 0) }, styles.screen, dense && styles.denseScreen, style]}
+    >
+      {children}
+    </SafeAreaView>
+  );
 }
 
 interface BaseButtonProps {
@@ -15,9 +27,10 @@ interface BaseButtonProps {
   fullWidth?: boolean;
   iconName?: IconName;
   iconSide?: 'left' | 'right';
+  testID?: string;
 }
 
-export function PrimaryButton({ title, onPress, disabled = false, compact = false, fullWidth = false, iconName, iconSide = 'left' }: BaseButtonProps) {
+export function PrimaryButton({ title, onPress, disabled = false, compact = false, fullWidth = false, iconName, iconSide = 'left', testID }: BaseButtonProps) {
   const content = (
     <>
       {iconName && iconSide === 'left' ? (
@@ -29,10 +42,10 @@ export function PrimaryButton({ title, onPress, disabled = false, compact = fals
       ) : null}
     </>
   );
-  return <Pressable disabled={disabled} onPress={onPress} style={[styles.button, compact && styles.buttonCompact, fullWidth && styles.fullWidth, disabled && styles.disabled]}>{content}</Pressable>;
+  return <Pressable testID={testID} disabled={disabled} onPress={onPress} hitSlop={8} style={[styles.button, compact && styles.buttonCompact, fullWidth && styles.fullWidth, disabled && styles.disabled]}>{content}</Pressable>;
 }
 
-export function SecondaryButton({ title, onPress, disabled = false, compact = false, fullWidth = false, iconName, iconSide = 'left' }: BaseButtonProps) {
+export function SecondaryButton({ title, onPress, disabled = false, compact = false, fullWidth = false, iconName, iconSide = 'left', testID }: BaseButtonProps) {
   const content = (
     <>
       {iconName && iconSide === 'left' ? (
@@ -44,7 +57,7 @@ export function SecondaryButton({ title, onPress, disabled = false, compact = fa
       ) : null}
     </>
   );
-  return <Pressable disabled={disabled} onPress={onPress} style={[styles.secondary, compact && styles.secondaryCompact, fullWidth && styles.fullWidth, disabled && styles.disabled]}>{content}</Pressable>;
+  return <Pressable testID={testID} disabled={disabled} onPress={onPress} hitSlop={8} style={[styles.secondary, compact && styles.secondaryCompact, fullWidth && styles.fullWidth, disabled && styles.disabled]}>{content}</Pressable>;
 }
 
 export function Field({ label, ...props }: TextInputProps & { label: string }) {
@@ -63,17 +76,17 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.colors.background, paddingHorizontal: theme.spacing.lg, paddingTop: theme.spacing.xl },
   denseScreen: { paddingHorizontal: theme.spacing.md, paddingTop: theme.spacing.lg },
   button: { backgroundColor: theme.colors.ink, borderRadius: theme.radius.sm, minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingHorizontal: theme.spacing.lg, gap: 6 },
-  buttonCompact: { minHeight: 40, paddingHorizontal: theme.spacing.md },
+  buttonCompact: { minHeight: 44, paddingHorizontal: theme.spacing.md },
   buttonText: { color: theme.colors.white, fontSize: theme.typography.body, fontWeight: '500' },
   buttonTextCompact: { fontSize: theme.typography.small },
   disabled: { opacity: 0.55 },
   secondary: { borderWidth: 1, borderColor: theme.colors.inkFaint, borderRadius: theme.radius.sm, minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingHorizontal: theme.spacing.md, gap: 6 },
-  secondaryCompact: { minHeight: 36, paddingHorizontal: theme.spacing.sm },
+  secondaryCompact: { minHeight: 44, paddingHorizontal: theme.spacing.sm },
   fullWidth: { width: '100%', alignSelf: 'stretch' },
   secondaryText: { color: theme.colors.inkMid, fontSize: theme.typography.small },
   secondaryTextCompact: { fontSize: 13 },
   iconWrap: { alignItems: 'center', justifyContent: 'center' },
-  field: { gap: 6, minWidth: 0, flex: 1 },
+  field: { gap: 6, minWidth: 0, width: '100%' },
   label: { color: theme.colors.inkMid, fontSize: 13, letterSpacing: 0.6 },
   input: { backgroundColor: theme.colors.white, borderWidth: 1, borderColor: theme.colors.inkFaint, borderRadius: theme.radius.sm, minHeight: 46, paddingHorizontal: 14, color: theme.colors.ink, fontSize: theme.typography.body },
   multiline: { minHeight: 80, paddingTop: 10, textAlignVertical: 'top' },

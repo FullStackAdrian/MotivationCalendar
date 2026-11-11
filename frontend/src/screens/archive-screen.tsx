@@ -61,11 +61,11 @@ export default function ArchiveScreen() {
         <AppHeader
           title="Archivo"
           subtitle="Tareas completadas que ya no están activas."
-          stack={isMobile}
+          stack={false}
           right={
             <View style={[styles.actions, isMobile && styles.mobileActions]}>
-              <SecondaryButton title="Kanban" iconName="chevron-back" iconSide="left" compact={compactBtn} fullWidth={compactBtn} onPress={() => router.push('/kanban')} />
-              <SecondaryButton title="Salir" iconName="log-out-outline" compact={compactBtn} fullWidth={compactBtn} onPress={() => logout().then(() => router.replace('/login'))} />
+              <SecondaryButton title="Kanban" iconName="chevron-back" iconSide="left" compact={compactBtn} onPress={() => router.push('/kanban')} />
+              <SecondaryButton title="Salir" iconName="log-out-outline" compact={compactBtn} onPress={() => logout().then(() => router.replace('/login'))} />
             </View>
           }
         />
@@ -100,8 +100,8 @@ export default function ArchiveScreen() {
 const styles = StyleSheet.create({
   screen: { paddingHorizontal: theme.spacing.lg, paddingTop: theme.spacing.xl },
   shell: { width: '100%', maxWidth: 1400, alignSelf: 'center', flex: 1 },
-  actions: { flexDirection: 'row', gap: 8 },
-  mobileActions: { flexDirection: 'column', gap: 6, width: '100%' },
+  actions: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
+  mobileActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   controls: { marginBottom: 20, gap: 6 },
   label: { color: theme.colors.inkMid, fontSize: 11, letterSpacing: 1, textTransform: 'uppercase' },
   boardPicker: { gap: 8, paddingRight: 4 },
