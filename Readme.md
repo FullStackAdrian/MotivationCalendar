@@ -183,6 +183,53 @@ Deployment is intentionally separate from CI. A successful CI run on `master` tr
 - Use HTTPS in production.
 - Consider rate limiting before exposing the API publicly.
 
+## Beta (alcance 2026-11-11)
+
+La beta incluye: auth JWT (access token 30 días vía `JWT_EXPIRES_IN`, **sin
+refresh ni rotación** — decisión P.6: fuera de la beta), calendario con
+sincronización bulk, kanban multi-pizarra con recurrencias semanales y
+export web Expo. Ver `TODO.md` (bloques BETA-1…BETA-5) para el detalle.
+
+Límites conocidos de la beta:
+
+- Sin refresh tokens: al expirar hay que volver a entrar (la app avisa).
+- Auth con rate-limit (10 intentos/15 min por IP, `AUTH_RATE_LIMIT_MAX`).
+- Nombres acotados (pizarra 120, estado 80, tarea 180, descripción 2000).
+- Sin migraciones: `sequelize.sync()` create-only; el backup es del volumen.
+- El export web estático registra un aviso de hidratación (#418) bajo
+  fallback SPA; la app recupera en cliente (ver B3.4 en `TODO.md`).
+
+Variables requeridas en producción: `NODE_ENV=production`,
+`JWT_SECRET` (≥32 caracteres), `DATABASE_URL`, `ALLOWED_ORIGINS` (solo los
+orígenes reales), `EXPO_PUBLIC_API_URL` (secret del workflow Pages).
+
+## Runbook mínimo
+
+```bash
+# Backup de Postgres (volumen motivation-calendar-postgres-data)
+docker run --rm -v motivation-calendar-postgres-data:/data \
+  -v "$PWD":/backup postgres:16-alpine \
+  tar -czf /backup/pg-backup.tar.gz -C /data .
+
+# Restore (con el stack parado)
+docker compose down
+docker run --rm -v motivation-calendar-postgres-data:/data \
+  -v "$PWD":/backup postgres:16-alpine \
+  tar -xzf /backup/pg-backup.tar.gz -C /data
+docker compose up -d
+
+# Rotación de JWT_SECRET (invalida todas las sesiones)
+# 1. Genera uno nuevo: openssl rand -base64 48
+# 2. Actualízalo en el entorno del backend y reinicia: docker compose up -d backend
+
+# Logs y salud
+docker compose logs -f backend        # errores (sin secretos: nunca se loguean tokens ni claves)
+curl http://localhost:3000/api/health # {"status":"ok","database":"ok",...} o 503 si la BD cae
+
+# Datos demo solo en staging (nunca en prod; idempotente)
+SEED_DEMO=true DATABASE_URL=postgres://... npm run seed:demo
+```
+
 ## License
 
 ISC
