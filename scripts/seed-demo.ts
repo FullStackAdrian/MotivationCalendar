@@ -22,6 +22,12 @@ import {
 } from '../backend/infrastructure/models/database';
 
 export const DEMO_BOARD_NAME = 'Tablero demo';
+const DEMO_BOARDS = [
+  { name: 'Tablero demo', description: 'Datos de ejemplo para probar la beta en staging', color: '#6366f1' },
+  { name: 'Proyecto demo', description: 'Pizarra de ejemplo para organizar trabajo' },
+  { name: 'Hábitos demo', description: 'Pizarra de ejemplo para hábitos diarios' }
+];
+const DEMO_TASKS = ['Primera tarea de ejemplo', 'Segunda tarea de ejemplo'];
 const DEMO_PASSWORD = 'Demo1234!';
 
 export interface SeedDemoResult {
@@ -29,6 +35,7 @@ export interface SeedDemoResult {
   created?: boolean;
   user?: User;
   board?: Board;
+  boards?: Board[];
 }
 
 function buildService(): KanbanService {
@@ -53,16 +60,33 @@ export async function seedDemo({ emailPrefix = 'demo' }: { emailPrefix?: string 
   }
   const service = buildService();
   const visible = await service.listBoards(user.id);
-  let board = visible.find((item) => item.name === DEMO_BOARD_NAME) ?? null;
-  if (!board) {
-    const details = await service.createBoard(user.id, {
-      name: DEMO_BOARD_NAME,
-      description: 'Datos de ejemplo para probar la beta en staging'
-    });
-    board = { id: details.id, name: details.name, description: details.description, color: details.color, ownerId: details.ownerId } as Board;
-    created = true;
+  const boards: Board[] = [];
+  for (const spec of DEMO_BOARDS) {
+    let board = visible.find((item) => item.name === spec.name) ?? null;
+    if (!board) {
+      const details = await service.createBoard(user.id, {
+        name: spec.name,
+        description: spec.description
+      });
+      board = { id: details.id, name: details.name, description: details.description, color: details.color, ownerId: details.ownerId } as Board;
+      created = true;
+    }
+    boards.push(board);
   }
-  return { skipped: false, created, user, board };
+  // Tareas de ejemplo en la primera pizarra (idempotente por título).
+  const firstDetails = await service.getBoard(boards[0].id, user.id);
+  const firstColumn = firstDetails.columns[0];
+  const existingTitles = new Set((firstDetails.tasks ?? []).map((task) => task.title));
+  if (firstColumn) {
+    for (const title of DEMO_TASKS) {
+      if (!existingTitles.has(title)) {
+        await service.createTask(boards[0].id, user.id, { title, columnId: firstColumn.id });
+        created = true;
+      }
+    }
+  }
+  const board = boards.find((item) => item.name === DEMO_BOARD_NAME) ?? boards[0];
+  return { skipped: false, created, user, board, boards };
 }
 
 if (require.main === module) {
@@ -72,7 +96,7 @@ if (require.main === module) {
     if (result.skipped) {
       console.log('Seed demo omitido (SEED_DEMO != true). Nada que hacer en producción.');
     } else {
-      console.log(`Seed demo listo: usuario y tablero${result.created ? ' creados' : ' ya existentes'}.`);
+      console.log(`Seed demo listo: usuario y ${DEMO_BOARDS.length} tableros${result.created ? ' creados' : ' ya existentes'}.`);
     }
     await closeDatabase();
   })().catch(async (error) => {
