@@ -252,6 +252,8 @@ tablero inexistente → 404; `npm test` + `test:coverage` verdes.
 
 ## BETA-2 — Validación de Kanban (`chore/beta-2-kanban-validation`)
 
+> Hecho 2026-11-11: unit 133/133, integración 30/30, cobertura con gate verde, lint OK, Expo kanban 24/24 nativo. Runtime: nombre 5k → 400, UUID inválido → 400.
+
 Evidencia: `POST /api/kanban/boards {"name":"<script>alert(1)</script>"}`
 → `201` con el nombre guardado tal cual (sin `maxlength`; `normalizeName`
 en `backend/domain/kanban.ts:13-15` solo exige no-vacío). Mismo endpoint
@@ -259,14 +261,14 @@ con `name` de 5000 chars → `500 Error interno` (debería 400). Login con
 `identifier: "admin OR 1=1 --"` → `401` correcto (Sequelize parametriza;
 sin inyección). Registro duplicado → `409` correcto.
 
-- [ ] **B2.1** `maxLength` en nombres/descripciones de board/column/task
+- [x] **B2.1** `maxLength` en nombres/descripciones de board/column/task
       (p. ej. name ≤ 120, description ≤ 2000) en `domain/kanban.ts` con
       mensajes 400; verificar que el 5k da 400, no 500.
-- [ ] **B2.2** Política XSS documentada + test: RN `<Text>` y `react-dom`
+- [x] **B2.2** Política XSS documentada + test: RN `<Text>` y `react-dom`
       escapan por defecto (bajo riesgo), pero el backend no debe persistir
       `<script>` sin necesidad — o bien sanitizar/escapar al presentar, o
       documentar "almacenar literal, escapar al render" con test de render.
-- [ ] **B2.3** Revisar resto de `create*`/`update*` de kanban con el mismo
+- [x] **B2.3** Revisar resto de `create*`/`update*` de kanban con el mismo
       patrón (límites + códigos 400/403/404) y tests de cada 500 hallado.
 
 **Aceptación:** nombre 5k → 400; `<script>` con comportamiento definido y
