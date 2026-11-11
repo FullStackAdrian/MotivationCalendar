@@ -276,6 +276,8 @@ testeado; ningún `create*` devuelve 500 por entrada larga/vacía.
 
 ## BETA-3 — Expo: guards de auth y UX de error (`chore/beta-3-expo-auth-guards`)
 
+> Hecho 2026-11-11: Expo coverage 196 passed/0 failed (gates 70/70/75/70), typecheck OK, smoke OK. E2E (frontend Docker reconstruido): /calendar, /kanban y /archive sin sesión → /login con 0 errores de consola; favicon 200. #418: ruido de hidratación del export estático bajo fallback SPA (en dev SSR limpio, la app recupera en cliente); documentado, no bloqueante.
+
 Evidencia Playwright (Docker `frontend:8081`): `GET /calendar` y `/kanban`
 **sin sesión** renderizan el shell con error inline
 (`No se proporcionó token de autenticación`) y **sin redirect a `/login`**
@@ -287,18 +289,18 @@ error #418` en consola tras el login 403. Token expirado real (firmado)
 en 401 sin redirigir ni avisar. Botón deshabilitado con campos vacíos OK;
 credenciales malas muestran `Credenciales inválidas` OK (vía localhost).
 
-- [ ] **B3.1** Guard en rutas protegidas (`calendar/kanban/archive` o
+- [x] **B3.1** Guard en rutas protegidas (`calendar/kanban/archive` o
       layout segment): si `!loading && !user` → `Redirect /login`.
       Tests RTL + smoke Playwright manual.
-- [ ] **B3.2** Sesión expirada: 401/expiración → `clearAuth` + redirect
+- [x] **B3.2** Sesión expirada: 401/expiración → `clearAuth` + redirect
       `/login` + mensaje ("Sesión expirada"), no solo error inline.
-- [ ] **B3.3** No mostrar strings internos de red en UI: mapear
+- [x] **B3.3** No mostrar strings internos de red en UI: mapear
       `No permitido por CORS`/mensajes técnicos a texto genérico
       ("No se pudo conectar…"). (El 403 CORS solo debe verse en dev.)
-- [ ] **B3.4** `favicon.ico` + assets web base; investigar el #418 de
+- [x] **B3.4** `favicon.ico` + assets web base; investigar el #418 de
       hidratación en `expo export --platform web` (repro: login con API
       403) y documentar o corregir.
-- [ ] **B3.5** Resiliencia `ApiClient`: timeout ya 10s; añadir 1 reintento
+- [x] **B3.5** Resiliencia `ApiClient`: timeout ya 10s; añadir 1 reintento
       en GETs idempotentes + estado offline/vacio en calendar/kanban
       (hoy solo error inline). Tests.
 
