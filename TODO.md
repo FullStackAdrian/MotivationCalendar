@@ -205,3 +205,159 @@ All files                            |   93.62 |    81.51 |   93.11 |   93.62
  backend/infrastructure/security     |     100 |    74.19 |     100 |     100
  frontend Expo (Jest)                |   SIN MEDIR — 12 tests / 1 suite
 ```
+
+---
+
+# BETA — Endurecimiento para beta en producción (auditoría 2026-11-10)
+
+> Auditoría runtime real: backend `master` + Postgres local + stack Docker
+> (`motivation-calendar-backend:3000`, `frontend:8081`) + Playwright contra la
+> app servida. Cada bloque = **1 rama + 1 PR separada**. No duplican
+> `TODO_DEPLOY.md` (P.1–P.6): lo referencian donde solapan.
+> Tras BETA-1…BETA-4 la app queda en estado beta; BETA-5 es checklist de salida.
+
+## BETA-1 — Seguridad y robustez API (`chore/beta-1-api-hardening`)
+
+> Hecho 2026-11-11: unit 132/132, integración 30/30, cobertura 99.3/89.5/99.4 con gate verde, lint OK.
+
+Evidencia: `POST /api/auth/login` x21 seguidos → 21×`401`, ningún `429`
+(`backend/infrastructure/routes/auth.ts:15-17` sin rate-limit; grep
+`helmet|rate-limit` en `server.ts`/`package.json` = 0). Headers en
+`GET /api/health`: solo `nosniff/DENY/Referrer-Policy`, sin HSTS/CSP.
+`GET /nope` y `GET /api/kanban/auth` devuelven **HTML** de Express
+(`Cannot GET …`), no JSON. `GET /api/kanban/boards/:id` inexistente → `500`
+(debería 404/403); el middleware de `kanban.ts:56-60` no mapea
+`'Estado no encontrado'` (`kanban.service.ts:getBoard`) y cae al handler
+genérico. `/api/health` expone `environment`; con `NODE_ENV=development`
+(Docker local) el handler CORS devuelve el mensaje interno.
+
+- [x] **B1.1** Rate-limit en `POST /api/auth/register` y `/login`
+      (`express-rate-limit`, p. ej. 10/15min por IP; `trust proxy` si hay
+      nginx delante). Test del `429`. (Solapa con P.3.)
+- [x] **B1.2** 404 JSON API-only: catch-all tras las rutas que devuelva
+      `{ error: 'No encontrado' }` en vez del HTML de Express. Test.
+- [x] **B1.3** Mapear `'Estado no encontrado'` → 404 en `kanban.ts:56-60`
+      (o mensaje `'Tablero no encontrado'` que case con la regex). Test:
+      `GET boards/:id` inexistente → 404, no 500.
+- [x] **B1.4** Headers: añadir HSTS (solo prod/tras TLS) + CSP básica o
+      documentar por qué no aplican al API-only; mantener `x-powered-by`
+      desactivado. Test de headers.
+- [x] **B1.5** Sanitizar errores: ningún `err.message` interno ni `stack`
+      fuera de `development` (revisar `server.ts:67-73`,
+      `auth.controller.ts:83-92`); `/api/health` sin `environment` en
+      respuesta (o campo mínimo `status/database`).
+
+**Aceptación:** 11º login seguido → `429`; rutas desconocidas JSON 404;
+tablero inexistente → 404; `npm test` + `test:coverage` verdes.
+
+## BETA-2 — Validación de Kanban (`chore/beta-2-kanban-validation`)
+
+Evidencia: `POST /api/kanban/boards {"name":"<script>alert(1)</script>"}`
+→ `201` con el nombre guardado tal cual (sin `maxlength`; `normalizeName`
+en `backend/domain/kanban.ts:13-15` solo exige no-vacío). Mismo endpoint
+con `name` de 5000 chars → `500 Error interno` (debería 400). Login con
+`identifier: "admin OR 1=1 --"` → `401` correcto (Sequelize parametriza;
+sin inyección). Registro duplicado → `409` correcto.
+
+- [ ] **B2.1** `maxLength` en nombres/descripciones de board/column/task
+      (p. ej. name ≤ 120, description ≤ 2000) en `domain/kanban.ts` con
+      mensajes 400; verificar que el 5k da 400, no 500.
+- [ ] **B2.2** Política XSS documentada + test: RN `<Text>` y `react-dom`
+      escapan por defecto (bajo riesgo), pero el backend no debe persistir
+      `<script>` sin necesidad — o bien sanitizar/escapar al presentar, o
+      documentar "almacenar literal, escapar al render" con test de render.
+- [ ] **B2.3** Revisar resto de `create*`/`update*` de kanban con el mismo
+      patrón (límites + códigos 400/403/404) y tests de cada 500 hallado.
+
+**Aceptación:** nombre 5k → 400; `<script>` con comportamiento definido y
+testeado; ningún `create*` devuelve 500 por entrada larga/vacía.
+
+## BETA-3 — Expo: guards de auth y UX de error (`chore/beta-3-expo-auth-guards`)
+
+Evidencia Playwright (Docker `frontend:8081`): `GET /calendar` y `/kanban`
+**sin sesión** renderizan el shell con error inline
+(`No se proporcionó token de autenticación`) y **sin redirect a `/login`**
+(solo `app/index.tsx` redirige; `app/calendar.tsx|kanban.tsx|archive.tsx`
+sin `useAuth/Redirect` — grep vacío; `_layout.tsx` sin guard).
+Falta `favicon.ico` → 404 en consola. Hydration web: `Minified React
+error #418` en consola tras el login 403. Token expirado real (firmado)
+→ `401 Token expirado` correcto en API, pero la app solo limpia el token
+en 401 sin redirigir ni avisar. Botón deshabilitado con campos vacíos OK;
+credenciales malas muestran `Credenciales inválidas` OK (vía localhost).
+
+- [ ] **B3.1** Guard en rutas protegidas (`calendar/kanban/archive` o
+      layout segment): si `!loading && !user` → `Redirect /login`.
+      Tests RTL + smoke Playwright manual.
+- [ ] **B3.2** Sesión expirada: 401/expiración → `clearAuth` + redirect
+      `/login` + mensaje ("Sesión expirada"), no solo error inline.
+- [ ] **B3.3** No mostrar strings internos de red en UI: mapear
+      `No permitido por CORS`/mensajes técnicos a texto genérico
+      ("No se pudo conectar…"). (El 403 CORS solo debe verse en dev.)
+- [ ] **B3.4** `favicon.ico` + assets web base; investigar el #418 de
+      hidratación en `expo export --platform web` (repro: login con API
+      403) y documentar o corregir.
+- [ ] **B3.5** Resiliencia `ApiClient`: timeout ya 10s; añadir 1 reintento
+      en GETs idempotentes + estado offline/vacio en calendar/kanban
+      (hoy solo error inline). Tests.
+
+**Aceptación:** `/calendar` y `/kanban` sin sesión → `/login`; sesión
+expirada → `/login` con aviso; consola sin 404 favicon ni #418 en flujo feliz.
+
+## BETA-4 — Web/CORS/despliegue (`chore/beta-4-web-cors-deploy`)
+
+Evidencia: abrir la misma app en `http://127.0.0.1:8081/login` → login
+siempre `403 No permitido por CORS`; en `http://localhost:8081/login` →
+`401 Credenciales inválidas` correcto. Causa:
+`ALLOWED_ORIGINS=http://localhost:3000,http://localhost:8081`
+(`docker-compose.yml:35`) sin variantes `127.0.0.1`. Además:
+`deploy.yml:27`/`deploy-pages.yml:78` empaquetan `backend/` en `.ts` sin
+`npm run build` (artefacto no arranca con `node backend/dist/server.js`,
+P.1); `deploy-pages.yml:49-51` exporta sin `EXPO_PUBLIC_API_URL` (hornea
+`localhost:3000`, P.2); Node `20` en backend/deploy frente a `22` en CI y
+frontend (P.5).
+
+- [ ] **B4.1** `ALLOWED_ORIGINS` dev: incluir `http://localhost:8081`,
+      `http://127.0.0.1:8081`, `http://localhost:3000`,
+      `http://127.0.0.1:3000` (o variable documentada en `.env.example`).
+      Test: login vía `127.0.0.1` en verde.
+- [ ] **B4.2** `deploy.yml` + `deploy-pages.yml` (job `backend-artifact`):
+      `setup-node` + `npm ci` + `npm run build`, empaquetar `dist/`. (P.1.)
+- [ ] **B4.3** `deploy-pages.yml`: inyectar `EXPO_PUBLIC_API_URL` desde
+      secret + validación `! grep localhost dist/index.html`. (P.2.)
+- [ ] **B4.4** Alinear Node a 22 (backend Dockerfile + deploys) y verificar
+      `docker.yml` en CI. (P.5.)
+
+**Aceptación:** login OK en `localhost` y `127.0.0.1`; artefacto backend
+descargado arranca; export Pages sin `localhost:3000`; CI+Doker verdes.
+
+## BETA-5 — Checklist de salida beta (`chore/beta-5-beta-checklist`)
+
+Evidencia: `npm audit --audit-level=high` → pasa con **6 moderate**
+restantes; `test:unit` 126/126 verde; seguridad: `JWT_SECRET` mínimo 32 en
+prod OK, bcrypt cost 10 OK, `sync()` create-only OK, `.env` no versionado
+OK. Quedan decisiones/documentación, no bloqueantes de código.
+
+- [ ] **B5.1** `Readme.md`: sección "Beta" (qué incluye/no incluye,
+      cómo desplegar, variables requeridas, límites conocidos:
+      sin refresh-token, JWT 30d).
+- [ ] **B5.2** Runbook mínimo: backup/restore Postgres del volumen,
+      rotación `JWT_SECRET`, lectura de logs, healthcheck.
+- [ ] **B5.3** Decidir P.6 (refresh rotation) como scope aparte sí/no;
+      si no, dejarlo fuera de la beta por escrito.
+- [ ] **B5.4** Seeder demo idempotente solo staging tras flag (P.4, opcional
+      para beta si hace falta demo).
+- [ ] **B5.5** Puerta final: `lint` + `test:unit` + `test:integration` +
+      `test:frontend` + `test:coverage` + `audit --audit-level=high` +
+      flujo Playwright feliz (register→login→calendar→kanban) sin errores
+      de consola salvo favicon ya corregido.
+
+**Aceptación:** checklist B5.5 en verde y documentado en el README;
+sin bloqueantes BETA-1…BETA-4 abiertos.
+
+## Orden de PRs (cada una de su rama)
+
+1. **BETA-1** (seguridad API) — primera, bloquea la beta.
+2. **BETA-2** (validación kanban) — independiente, puede ir en paralelo.
+3. **BETA-3** (guards/UX Expo).
+4. **BETA-4** (CORS/deploy) — incluye P.1+P.2+P.5.
+5. **BETA-5** (checklist/docs) — última, solo cuando 1–4 estén verdes.

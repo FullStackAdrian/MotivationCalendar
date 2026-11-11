@@ -30,5 +30,13 @@ export const config = {
   jwtSecret,
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '30d',
   nodeEnv: (process.env.NODE_ENV || 'development') as NodeEnv,
-  allowedOrigins: parseAllowedOrigins(process.env.ALLOWED_ORIGINS)
+  allowedOrigins: parseAllowedOrigins(process.env.ALLOWED_ORIGINS),
+  // BETA-1: anti fuerza-bruta en auth (10 intentos/15min por IP en dev/prod;
+  // 100 en test para que la suite de integración no roce el límite).
+  authRateLimitMax: Number(process.env.AUTH_RATE_LIMIT_MAX) ||
+    (process.env.NODE_ENV === 'test' ? 100 : 10),
+  // BETA-1: nº de proxies de confianza delante del backend (nginx en compose).
+  trustProxyHops: process.env.TRUST_PROXY_HOPS === undefined
+    ? 1
+    : Number(process.env.TRUST_PROXY_HOPS)
 } as const;

@@ -52,10 +52,22 @@ router.patch('/tasks/:taskId/move', asyncRoute(async (req, res) => {
 router.post('/tasks/:taskId/complete', asyncRoute(async (req, res) =>
   res.json(await service.completeTask(param(req, 'taskId'), userId(req), req.body.date))));
 
+// BETA-1: mapeo de errores de negocio a HTTP (función pura y testeable).
+// Devuelve null cuando el error no es de negocio y debe seguir al handler global.
+export function mapKanbanErrorResponse(error: Error & { message: string }): { status: number; body: { error: string } } | null {
+  if (error.message === 'No autorizado') return { status: 403, body: { error: error.message } };
+  // Recurso inexistente pero con acceso previo (p. ej. tablero borrado) → 404, no 500.
+  if (error.message === 'Estado no encontrado') return { status: 404, body: { error: 'Tablero no encontrado' } };
+  if (/no encontrado|obligatorio|inválid|límite|día de frecuencia|Tipo de frecuencia|Ocurrencia|asignado/i.test(error.message)) {
+    return { status: 400, body: { error: error.message } };
+  }
+  return null;
+}
+
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 router.use((error: Error & { message: string }, req: Request, res: Response, _next: NextFunction) => {
-  if (error.message === 'No autorizado') return res.status(403).json({ error: error.message });
-  if (/no encontrado|obligatorio|inválid|límite|día de frecuencia|Tipo de frecuencia|Ocurrencia|asignado/i.test(error.message)) return res.status(400).json({ error: error.message });
+  const mapped = mapKanbanErrorResponse(error);
+  if (mapped) return res.status(mapped.status).json(mapped.body);
   return _next(error);
 });
 
