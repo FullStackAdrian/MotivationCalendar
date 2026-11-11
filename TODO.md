@@ -309,6 +309,8 @@ expirada → `/login` con aviso; consola sin 404 favicon ni #418 en flujo feliz.
 
 ## BETA-4 — Web/CORS/despliegue (`chore/beta-4-web-cors-deploy`)
 
+> Hecho 2026-11-11: unit 130/130, integración 30/30, cobertura 99.4/89.6/99.4 gate verde, lint+smoke OK. E2E: login desde Origin 127.0.0.1:8081 → 401 (antes 403); tarball con dist arranca (health 200); imagen node v22.23.2 arranca (health 200).
+
 Evidencia: abrir la misma app en `http://127.0.0.1:8081/login` → login
 siempre `403 No permitido por CORS`; en `http://localhost:8081/login` →
 `401 Credenciales inválidas` correcto. Causa:
@@ -320,15 +322,15 @@ P.1); `deploy-pages.yml:49-51` exporta sin `EXPO_PUBLIC_API_URL` (hornea
 `localhost:3000`, P.2); Node `20` en backend/deploy frente a `22` en CI y
 frontend (P.5).
 
-- [ ] **B4.1** `ALLOWED_ORIGINS` dev: incluir `http://localhost:8081`,
+- [x] **B4.1** `ALLOWED_ORIGINS` dev: incluir `http://localhost:8081`,
       `http://127.0.0.1:8081`, `http://localhost:3000`,
       `http://127.0.0.1:3000` (o variable documentada en `.env.example`).
       Test: login vía `127.0.0.1` en verde.
-- [ ] **B4.2** `deploy.yml` + `deploy-pages.yml` (job `backend-artifact`):
+- [x] **B4.2** `deploy.yml` + `deploy-pages.yml` (job `backend-artifact`):
       `setup-node` + `npm ci` + `npm run build`, empaquetar `dist/`. (P.1.)
-- [ ] **B4.3** `deploy-pages.yml`: inyectar `EXPO_PUBLIC_API_URL` desde
+- [x] **B4.3** `deploy-pages.yml`: inyectar `EXPO_PUBLIC_API_URL` desde
       secret + validación `! grep localhost dist/index.html`. (P.2.)
-- [ ] **B4.4** Alinear Node a 22 (backend Dockerfile + deploys) y verificar
+- [x] **B4.4** Alinear Node a 22 (backend Dockerfile + deploys) y verificar
       `docker.yml` en CI. (P.5.)
 
 **Aceptación:** login OK en `localhost` y `127.0.0.1`; artefacto backend

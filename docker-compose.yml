@@ -32,7 +32,7 @@ services:
       PORT: 3000
       DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-motivation_calendar}
       JWT_SECRET: ${JWT_SECRET:-local-development-jwt-secret-change-me}
-      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:3000,http://localhost:${FRONTEND_PORT:-8081}}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000,http://localhost:${FRONTEND_PORT:-8081},http://127.0.0.1:${FRONTEND_PORT:-8081}}
     ports:
       - "${APP_PORT:-3000}:3000"
     depends_on:
