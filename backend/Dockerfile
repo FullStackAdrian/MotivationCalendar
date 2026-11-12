@@ -18,6 +18,7 @@ COPY package*.json ./
 RUN npm ci --omit=dev && npm cache clean --force
 
 COPY --from=build /app/backend/dist ./backend/dist
+COPY backend/downloads ./backend/downloads
 
 ENV NODE_ENV=production
 ENV PORT=3000

@@ -1,0 +1,86 @@
+name: Build Android APK
+
+on:
+  workflow_dispatch:
+    inputs:
+      api-url:
+        description: 'Backend público que el APK debe usar (si se omite, se usa el secret EXPO_PUBLIC_API_URL)'
+        required: false
+        type: string
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+env:
+  NODE_VERSION: '22'
+  JAVA_VERSION: '17'
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Resolve backend URL (misma que la web de Pages)
+        run: |
+          API_URL="${{ inputs.api-url }}"
+          if [ -z "$API_URL" ]; then
+            API_URL="${{ secrets.EXPO_PUBLIC_API_URL }}"
+          fi
+          if [ -z "$API_URL" ]; then
+            echo "ERROR: define el secret EXPO_PUBLIC_API_URL o el input api-url" >&2
+            exit 1
+          fi
+          echo "EXPO_PUBLIC_API_URL=$API_URL" >> "$GITHUB_ENV"
+          echo "Backend embebido: $API_URL"
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm install --no-audit --no-fund
+
+      - name: Build release APK (hornea EXPO_PUBLIC_API_URL)
+        working-directory: frontend
+        run: |
+          npx expo prebuild --platform android --clean
+          cd android
+          ./gradlew :app:assembleRelease
+          ls -lh app/build/outputs/apk/release/
+
+      - name: Stage APK for the backend download endpoint
+        run: |
+          mkdir -p backend/downloads
+          cp frontend/android/app/build/outputs/apk/release/*.apk backend/downloads/motivation-calendar.apk
+          ls -lh backend/downloads/
+          sha256sum backend/downloads/motivation-calendar.apk
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: motivation-calendar-apk
+          path: backend/downloads/motivation-calendar.apk
+          retention-days: 30
+
+      - name: Attach APK to GitHub Release
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: backend/downloads/motivation-calendar.apk

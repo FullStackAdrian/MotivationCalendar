@@ -57,6 +57,18 @@ test('GET /downloads/motivation-calendar.apk sirve el APK con cabeceras de desca
   }
 });
 
+test('resolveApkPath usa backend/downloads por defecto', async () => {
+  const mod = await import('../backend/infrastructure/routes/downloads');
+  const previous = process.env.APK_PATH;
+  delete process.env.APK_PATH;
+  try {
+    const p = mod.resolveApkPath();
+    assert.ok(p.endsWith('backend/downloads/motivation-calendar.apk'), p);
+  } finally {
+    if (previous === undefined) delete process.env.APK_PATH;
+    else process.env.APK_PATH = previous;
+  }
+});
 test('GET /api/downloads/info describe la descarga del APK', async () => {
   const server: ListenServer = app.listen(0);
   try {

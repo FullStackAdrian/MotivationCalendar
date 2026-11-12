@@ -4,9 +4,7 @@ import { Linking, Platform } from 'react-native';
 import { describeNative } from './helpers/projects';
 import { DownloadApkButton } from '../src/components/download-apk-button';
 
-jest.mock('react-native/Libraries/Linking/Linking', () => ({
-  openURL: jest.fn().mockResolvedValue(undefined),
-}));
+jest.spyOn(Linking, 'openURL').mockResolvedValue(undefined as never);
 
 describeNative('DownloadApkButton', () => {
   const OLD_OS = Platform.OS;

@@ -1,0 +1,18 @@
+{
+  "cli": { "version": ">= 16.0.0", "appVersionSource": "remote" },
+  "build": {
+    "base": {
+      "nodeVersion": "22.13.0"
+    },
+    "production": {
+      "android": { "buildType": "apk" },
+      "env": {}
+    },
+    "preview": {
+      "distribution": "internal",
+      "android": { "buildType": "apk" },
+      "env": {}
+    }
+  },
+  "submit": { "production": {} }
+}
