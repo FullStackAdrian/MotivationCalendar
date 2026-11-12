@@ -1,5 +1,6 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useContext, useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { SafeAreaInsetsContext } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { AppHeader, Badge, Field, PrimaryButton, Screen, SecondaryButton } from '@/components/ui';
 import { Icon } from '@/components/icon';
@@ -18,6 +19,8 @@ export default function KanbanScreen() {
   const router = useRouter();
   const { logout } = useAuth();
   const { isMobile, isTablet } = useResponsive();
+  const { width } = useWindowDimensions();
+  const columnWidth = isMobile ? Math.min(Math.max(width - 48, 240), 320) : 280;
   const [boards, setBoards] = useState<Board[]>([]);
   const [selected, setSelected] = useState<Board | null>(null);
   const [members, setMembers] = useState<BoardMember[]>([]);
@@ -206,46 +209,54 @@ export default function KanbanScreen() {
         <AppHeader
           title="Kanban"
           subtitle="Organiza el trabajo sin perder de vista el día."
-          stack={isMobile}
+          stack={false}
           right={
             <View style={[styles.headerActions, isMobile && styles.mobileHeaderActions]}>
-              <SecondaryButton title="Calendario" iconName="chevron-back" iconSide="left" compact={compactBtn} fullWidth={compactBtn} onPress={() => router.push('/calendar')} />
-              <SecondaryButton title="Salir" iconName="log-out-outline" compact={compactBtn} fullWidth={compactBtn} onPress={() => logout().then(() => router.replace('/login'))} />
+              <SecondaryButton title="Calendario" iconName="chevron-back" iconSide="left" compact={compactBtn} onPress={() => router.push('/calendar')} />
+              <SecondaryButton title="Salir" iconName="log-out-outline" compact={compactBtn} onPress={() => logout().then(() => router.replace('/login'))} />
             </View>
           }
         />
         <View style={styles.toolbar}>
           <View style={[styles.boardPicker, isMobile && styles.mobileBoardPicker]}>
             <Text style={styles.boardPickerLabel}>Pizarra</Text>
-            <SecondaryButton title="Nueva pizarra" iconName="add" compact={isMobile} fullWidth={isMobile} onPress={() => setModal('board')} />
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.boardOptions}>
+            <SecondaryButton title="Nueva pizarra" iconName="add" compact={isMobile} onPress={() => setModal('board')} />
+            <ScrollView horizontal showsHorizontalScrollIndicator contentContainerStyle={styles.boardOptions}>
               {(boards ?? []).map((board) => (
                 <Pressable key={board.id} onPress={() => selectBoard(board.id)} style={[styles.boardOption, selected?.id === board.id && styles.boardOptionActive]}>
-                  <Text style={[styles.boardOptionText, selected?.id === board.id && styles.boardOptionTextActive]}>{board.name}</Text>
+                  <Text style={[styles.boardOptionText, selected?.id === board.id && styles.boardOptionTextActive]} numberOfLines={1} ellipsizeMode="tail">{board.name}</Text>
                 </Pressable>
               ))}
             </ScrollView>
           </View>
           <View style={[styles.toolbarActions, isMobile && styles.mobileToolbarActions]}>
-            <SecondaryButton title="Nuevo estado" iconName="add" compact={compactBtn} fullWidth={compactBtn} onPress={() => selected && setModal('column')} />
-            <PrimaryButton title="Nueva tarea" iconName="add" compact={compactBtn} fullWidth={compactBtn} onPress={openTaskModal} disabled={!selected || !columns.length} />
-            <SecondaryButton title="Archivo" iconName="archive-outline" compact={compactBtn} fullWidth={compactBtn} onPress={() => selected && setModal('archive')} />
+            <SecondaryButton testID="kanban-new-state" title="Nuevo estado" iconName="add" compact={compactBtn} onPress={() => selected && setModal('column')} disabled={!selected} />
+            <PrimaryButton testID="kanban-new-task" title="Nueva tarea" iconName="add" compact={compactBtn} onPress={openTaskModal} disabled={!selected || !columns.length} />
+            <SecondaryButton testID="kanban-archive" title="Archivo" iconName="archive-outline" compact={compactBtn} onPress={() => selected && setModal('archive')} disabled={!selected} />
           </View>
         </View>
         {error ? (
-          <Pressable onPress={() => setError('')}>
-            <Text style={styles.error}>{error}</Text>
-          </Pressable>
+          <View style={styles.errorBox}>
+            <Text style={styles.errorText}>{error}</Text>
+            <SecondaryButton title="Reintentar" compact onPress={() => { setError(''); loadBoards(selected?.id); }} />
+          </View>
         ) : null}
         {loading && !selected ? <ActivityIndicator color={theme.colors.ink} style={styles.loader} /> : null}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[styles.board, isMobile && styles.mobileBoard]}>
+        {!loading && !selected && !error && !modal ? (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyTitle}>Crea tu primera pizarra</Text>
+            <Text style={styles.emptySubtitle}>Organiza tus tareas en columnas y avanza paso a paso.</Text>
+            <PrimaryButton title="Crear pizarra" iconName="add" onPress={() => setModal('board')} />
+          </View>
+        ) : null}
+        <ScrollView horizontal showsHorizontalScrollIndicator contentContainerStyle={[styles.board, isMobile && styles.mobileBoard]}>
           {columns.map((column) => {
             const columnTasks = activeTasks.filter((task) => task.columnId === column.id);
             return (
-              <View key={column.id} style={[styles.column, isMobile && styles.mobileColumn]}>
+              <View key={column.id} style={[styles.column, isMobile ? { width: columnWidth } : null]}>
                 <View style={styles.columnHead}>
                   <View style={[styles.statusDot, { backgroundColor: column.color || theme.colors.ink }]} />
-                  <Text style={styles.columnTitle} numberOfLines={1}>{column.name}</Text>
+                  <Text style={styles.columnTitle} numberOfLines={1} ellipsizeMode="tail">{column.name}</Text>
                   <Text style={styles.count}>{columnTasks.length}</Text>
                   <Text style={styles.columnMenu}>•••</Text>
                 </View>
@@ -253,7 +264,7 @@ export default function KanbanScreen() {
                   {columnTasks.length ? (
                     columnTasks.map((task) => (
                       <Pressable key={task.id} onPress={() => moveTask(task)} style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}>
-                        <Text style={styles.taskTitle} numberOfLines={3}>{task.title}</Text>
+                        <Text style={styles.taskTitle} numberOfLines={3} ellipsizeMode="tail">{task.title}</Text>
                         <View style={styles.taskMeta}>
                           <Text style={[styles.priority, task.priority === 'high' && styles.priorityHigh, task.priority === 'low' && styles.priorityLow]}>{task.priority}</Text>
 <View style={styles.metaInline}>
@@ -301,19 +312,19 @@ export default function KanbanScreen() {
             );
           })}
         </ScrollView>
-        <Text style={styles.hint}>Pulsa una tarjeta para avanzar al siguiente estado.</Text>
+        {isMobile && columns.length > 1 ? <Text style={styles.swipeHint}>Desliza para ver más columnas →</Text> : null}
+        {selected && columns.length ? <Text style={styles.hint}>Pulsa una tarjeta para avanzar al siguiente estado.</Text> : null}
       </View>
 
       <Modal visible={modal === 'board'} transparent animationType="fade" onRequestClose={resetBoardForm}>
-        <ModalShell title="Nueva pizarra" onClose={resetBoardForm}>
+        <ModalShell title="Nueva pizarra" onClose={resetBoardForm} footer={<PrimaryButton testID="cta-create-board" title="Crear pizarra" iconName="add" onPress={createBoard} />}>
           <Field label="Nombre" value={boardName} onChangeText={setBoardName} maxLength={120} />
           <Field label="Descripción" value={boardDescription} onChangeText={setBoardDescription} multiline numberOfLines={3} />
-          <PrimaryButton title="Crear pizarra" iconName="add" onPress={createBoard} />
         </ModalShell>
       </Modal>
 
       <Modal visible={modal === 'column'} transparent animationType="fade" onRequestClose={resetColumnForm}>
-        <ModalShell title="Nuevo estado" onClose={resetColumnForm}>
+        <ModalShell title="Nuevo estado" onClose={resetColumnForm} footer={<PrimaryButton testID="cta-create-column" title="Crear estado" iconName="add" onPress={createColumn} />}>
           <Field label="Nombre" value={columnName} onChangeText={setColumnName} maxLength={80} />
           <Text style={styles.formLabel}>Color</Text>
           <View style={styles.colorPicker}>
@@ -324,23 +335,30 @@ export default function KanbanScreen() {
           <Toggle label="Estado de finalización" active={columnDone} onPress={() => setColumnDone((value) => !value)} />
           <Toggle label="Estado en pausa" active={columnPaused} onPress={() => setColumnPaused((value) => !value)} />
           <Field label="Límite WIP opcional" value={columnWip} onChangeText={setColumnWip} keyboardType="numeric" />
-          <PrimaryButton title="Crear estado" iconName="add" onPress={createColumn} />
         </ModalShell>
       </Modal>
 
       <Modal visible={modal === 'task'} transparent animationType="slide" onRequestClose={resetTaskForm}>
-        <ModalShell title="Nueva tarea" onClose={resetTaskForm} scroll>
+        <ModalShell title="Nueva tarea" onClose={resetTaskForm} footer={<PrimaryButton testID="cta-create-task" title="Crear tarea" iconName="add" onPress={createTask} />}>
           <Field label="Título" value={taskTitle} onChangeText={setTaskTitle} maxLength={180} />
           <OptionPicker label="Estado" options={columns.map((column) => ({ value: column.id, label: column.name }))} value={taskColumn} onChange={setTaskColumn} />
           <OptionPicker label="Asignar a" options={[{ value: '', label: 'Sin asignar' }, ...members.map((member) => ({ value: member.id, label: member.username }))]} value={taskAssignee} onChange={setTaskAssignee} />
           <OptionPicker label="Prioridad" options={[{ value: 'low', label: 'Baja' }, { value: 'medium', label: 'Media' }, { value: 'high', label: 'Alta' }]} value={taskPriority} onChange={(value) => setTaskPriority(value as 'low' | 'medium' | 'high')} />
           <View style={styles.formGrid}>
-            <Field label="Puntos" value={taskPoints} onChangeText={setTaskPoints} keyboardType="numeric" />
-            <Field label="Minutos estimados" value={taskMinutes} onChangeText={setTaskMinutes} keyboardType="numeric" />
+            <View style={styles.formGridItem}>
+              <Field label="Puntos" value={taskPoints} onChangeText={setTaskPoints} keyboardType="numeric" />
+            </View>
+            <View style={styles.formGridItem}>
+              <Field label="Minutos estimados" value={taskMinutes} onChangeText={setTaskMinutes} keyboardType="numeric" />
+            </View>
           </View>
           <View style={styles.formGrid}>
-            <Field label="Fecha" value={taskDate} onChangeText={setTaskDate} placeholder="YYYY-MM-DD" />
-            <Field label="Hora" value={taskTime} onChangeText={setTaskTime} placeholder="HH:mm" />
+            <View style={styles.formGridItem}>
+              <Field label="Fecha" value={taskDate} onChangeText={setTaskDate} placeholder="YYYY-MM-DD" />
+            </View>
+            <View style={styles.formGridItem}>
+              <Field label="Hora" value={taskTime} onChangeText={setTaskTime} placeholder="HH:mm" />
+            </View>
           </View>
           <OptionPicker label="Frecuencia" options={[{ value: 'none', label: 'Sin frecuencia' }, { value: 'weekly', label: 'Semanal' }]} value={taskRecurrence} onChange={(value) => setTaskRecurrence(value as 'none' | 'weekly')} />
           {taskRecurrence === 'weekly' ? (
@@ -360,7 +378,6 @@ export default function KanbanScreen() {
             </View>
           ) : null}
           <Field label="Tags" value={taskTags} onChangeText={setTaskTags} placeholder="tag1, tag2" />
-          <PrimaryButton title="Crear tarea" iconName="add" onPress={createTask} />
         </ModalShell>
       </Modal>
 
@@ -383,17 +400,25 @@ export default function KanbanScreen() {
   );
 }
 
-function ModalShell({ title, onClose, children, scroll = false }: { title: string; onClose: () => void; children: React.ReactNode; scroll?: boolean }) {
-  const content = (
-    <View style={styles.modal}>
-      <Pressable onPress={onClose} style={styles.close}>
-        <Text style={styles.closeText}>×</Text>
-      </Pressable>
-      <Text style={styles.modalTitle}>{title}</Text>
-      {children}
+function ModalShell({ title, onClose, children, footer }: { title: string; onClose: () => void; children: React.ReactNode; footer?: React.ReactNode }) {
+  const insets = useContext(SafeAreaInsetsContext);
+  const bottom = insets?.bottom ?? 0;
+  return (
+    <View style={[styles.overlay, { paddingBottom: Math.max(16, bottom + 8) }]}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.avoid}>
+        <View style={styles.modal}>
+          <Pressable testID="modal-close" onPress={onClose} accessibilityLabel="Cerrar" style={styles.close}>
+            <Text style={styles.closeText}>×</Text>
+          </Pressable>
+          <Text style={styles.modalTitle}>{title}</Text>
+          <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator style={styles.modalBody} contentContainerStyle={styles.modalBodyContent}>
+            {children}
+          </ScrollView>
+          {footer ? <View testID="modal-footer" style={styles.modalFooter}>{footer}</View> : null}
+        </View>
+      </KeyboardAvoidingView>
     </View>
   );
-  return <View style={styles.overlay}>{scroll ? <ScrollView contentContainerStyle={styles.modalScroll}>{content}</ScrollView> : content}</View>;
 }
 
 function Toggle({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
@@ -423,19 +448,19 @@ function OptionPicker({ label, options, value, onChange }: { label: string; opti
 const styles = StyleSheet.create({
   screen: { paddingHorizontal: theme.spacing.lg, paddingTop: theme.spacing.xl },
   shell: { width: '100%', maxWidth: 1400, alignSelf: 'center', flex: 1 },
-  headerActions: { flexDirection: 'row', gap: 8 },
-  mobileHeaderActions: { flexDirection: 'column', gap: 6, width: '100%' },
+  headerActions: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
+  mobileHeaderActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
 toolbar: { marginBottom: theme.spacing.lg, gap: 14 },
   boardPicker: { minWidth: 0, width: '100%', gap: 8, alignItems: 'flex-start' },
   mobileBoardPicker: { alignItems: 'stretch' },
   boardPickerLabel: { color: theme.colors.inkMid, fontSize: 11, marginBottom: 2, letterSpacing: 1, textTransform: 'uppercase' },
   boardOptions: { gap: 6, paddingRight: 4 },
-  boardOption: { borderWidth: 1, borderColor: theme.colors.inkFaint, borderRadius: 7, paddingHorizontal: 14, paddingVertical: 10, backgroundColor: theme.colors.white },
+  boardOption: { borderWidth: 1, borderColor: theme.colors.inkFaint, borderRadius: 7, paddingHorizontal: 14, paddingVertical: 10, backgroundColor: theme.colors.white, maxWidth: 220 },
   boardOptionActive: { backgroundColor: theme.colors.ink, borderColor: theme.colors.ink },
   boardOptionText: { color: theme.colors.inkMid, fontSize: 14 },
   boardOptionTextActive: { color: theme.colors.white, fontWeight: '600' },
   toolbarActions: { flexDirection: 'row', gap: 8, flexWrap: 'wrap', alignItems: 'flex-start' },
-  mobileToolbarActions: { flexDirection: 'column', gap: 8, alignItems: 'stretch', width: '100%' },
+  mobileToolbarActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   board: { gap: 16, alignItems: 'flex-start', paddingBottom: 24, paddingRight: 16 },
   mobileBoard: { gap: 10, paddingLeft: 0, paddingRight: 8 },
   column: {
@@ -447,7 +472,6 @@ toolbar: { marginBottom: theme.spacing.lg, gap: 14 },
     width: 280,
     padding: 12,
   },
-  mobileColumn: { minWidth: 0, width: '78%', padding: 10 },
   columnHead: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 2, paddingTop: 4, paddingBottom: 12 },
   statusDot: { width: 10, height: 10, borderRadius: 5 },
   columnTitle: { color: theme.colors.ink, fontWeight: '600', flex: 1 },
@@ -479,13 +503,21 @@ toolbar: { marginBottom: theme.spacing.lg, gap: 14 },
   metaText: { color: theme.colors.inkMid, fontSize: 11 },
   tags: { flexDirection: 'row', gap: 4, flexWrap: 'wrap', marginVertical: 7 },
   taskFooter: { minHeight: 20, flexDirection: 'row', gap: 8, flexWrap: 'wrap', alignItems: 'center' },
-  taskStatus: { position: 'absolute', right: 10, top: 10, borderRadius: 20, paddingHorizontal: 7, paddingVertical: 3 },
+  taskStatus: { position: 'absolute', right: 10, top: 10, borderRadius: 20, paddingHorizontal: 7, paddingVertical: 3, maxWidth: 110 },
   taskStatusText: { color: theme.colors.white, fontSize: 9 },
   hint: { color: theme.colors.inkMid, textAlign: 'center', fontSize: 11, marginVertical: 10 },
+  swipeHint: { color: theme.colors.inkMid, textAlign: 'center', fontSize: 11, marginVertical: 6 },
+  emptyState: { alignItems: 'center', gap: 8, paddingVertical: 32 },
+  emptyTitle: { color: theme.colors.ink, fontSize: 20, fontWeight: '600', textAlign: 'center' },
+  emptySubtitle: { color: theme.colors.inkMid, fontSize: 13, textAlign: 'center', marginBottom: 8 },
   loader: { marginVertical: 20 },
-  error: { backgroundColor: '#ffebee', borderWidth: 1, borderColor: theme.colors.error, color: theme.colors.error, borderRadius: 6, padding: 10, marginBottom: 12 },
-  overlay: { flex: 1, backgroundColor: 'rgba(26,24,20,0.4)', justifyContent: 'center', padding: 20, zIndex: 20 },
-  modalScroll: { flexGrow: 1, justifyContent: 'center', paddingVertical: 20 },
+  errorBox: { backgroundColor: '#ffebee', borderWidth: 1, borderColor: theme.colors.error, borderRadius: 6, padding: 10, marginBottom: 12, gap: 8 },
+  errorText: { color: theme.colors.error },
+  overlay: { flex: 1, backgroundColor: 'rgba(26,24,20,0.4)', justifyContent: 'center', padding: 16, zIndex: 20 },
+  avoid: { flex: 1, width: '100%', justifyContent: 'center' },
+  modalBody: { flexGrow: 1, flexShrink: 1 },
+  modalBodyContent: { gap: 14, paddingBottom: 4 },
+  modalFooter: { marginTop: 2 },
   modal: {
     position: 'relative',
     backgroundColor: theme.colors.background,
@@ -501,11 +533,12 @@ toolbar: { marginBottom: theme.spacing.lg, gap: 14 },
     shadowRadius: 20,
     shadowOffset: { width: 0, height: 8 },
   },
-  close: { position: 'absolute', right: 14, top: 9, padding: 4, zIndex: 2 },
+  close: { position: 'absolute', right: 8, top: 8, padding: 10, minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center', zIndex: 2 },
   closeText: { color: theme.colors.ink, fontSize: 28, lineHeight: 30 },
   modalTitle: { color: theme.colors.ink, fontFamily: 'serif', fontSize: 30, fontWeight: '400', marginBottom: 2 },
   formLabel: { color: theme.colors.inkMid, fontSize: 13 },
   formGrid: { flexDirection: 'row', gap: 10 },
+  formGridItem: { flex: 1, minWidth: 0 },
   optionGroup: { gap: 6 },
   optionRow: { gap: 6 },
   option: { backgroundColor: theme.colors.white, borderWidth: 1, borderColor: theme.colors.inkFaint, borderRadius: 7, paddingHorizontal: 11, paddingVertical: 9 },

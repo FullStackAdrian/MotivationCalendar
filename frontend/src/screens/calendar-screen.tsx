@@ -31,8 +31,14 @@ export default function CalendarScreen() {
     return result;
   }, [days, columns]);
 
-  useEffect(() => {
+  const load = () => {
+    setError('');
     repository.getProgress().then((response) => setProgress(response.progress ?? {})).catch((e) => setError(friendlyAuthError(e, 'No se pudo cargar el calendario')));
+  };
+
+  useEffect(() => {
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const stats = useMemo(() => {
@@ -79,8 +85,8 @@ export default function CalendarScreen() {
       <View style={StyleSheet.flatten([styles.userHeader, isMobile && styles.mobileUserHeader])}>
         <Text style={styles.userInfo}>Hola, {user?.username ?? ''}</Text>
         <View style={StyleSheet.flatten([styles.mainNav, isMobile && styles.mobileMainNav])}>
-          <SecondaryButton title="Kanban" iconName="albums-outline" compact={isMobile} fullWidth={isMobile} onPress={() => router.push('/kanban')} />
-          <SecondaryButton title="Salir" iconName="log-out-outline" compact={isMobile} fullWidth={isMobile} onPress={() => logout().then(() => router.replace('/login'))} />
+          <SecondaryButton title="Kanban" iconName="albums-outline" compact={isMobile} onPress={() => router.push('/kanban')} />
+          <SecondaryButton title="Salir" iconName="log-out-outline" compact={isMobile} onPress={() => logout().then(() => router.replace('/login'))} />
         </View>
       </View>
       <View style={StyleSheet.flatten([styles.hero, isTablet && styles.tabletHero, isMobile && styles.mobileHero])}>
@@ -105,12 +111,13 @@ export default function CalendarScreen() {
           <Text style={styles.statLabel}>Días restantes</Text>
         </View>
       </View>
-      {error ? <Text style={styles.error}>{error}</Text> : null}
-      <FlatList data={rows} keyExtractor={(row) => String(row[0])} style={styles.gridList} contentContainerStyle={StyleSheet.flatten([styles.grid, isMobile && styles.mobileGrid])} showsVerticalScrollIndicator={false} renderItem={({ item: row }) => <View style={StyleSheet.flatten([styles.gridRow, isMobile && styles.mobileGridRow])}>{row.map(renderDay)}{row.length < columns && Array.from({ length: columns - row.length }, (_, index) => <View key={`empty-${index}`} style={styles.dayPlaceholder} />)}</View>} />
-      <View style={StyleSheet.flatten([styles.legend, isMobile && styles.mobileLegend])}>
-        {[['past', 'Pasado sin marcar'], ['future', 'Por venir'], ['done', 'Todo bien'], ['partial', 'A medias'], ['miss', 'Sin cumplir']].map(([key, label]) => <View style={styles.legendItem} key={key}><Badge label=" " backgroundColor={visualColor(key as VisualState)} /><Text style={styles.legendText}>{label}</Text></View>)}
-      </View>
-      <Text style={StyleSheet.flatten([styles.footer, isMobile && styles.mobileFooter])}>365 oportunidades {'\u00a0·\u00a0'} Aprovéchalas</Text>
+      {error ? (
+        <View style={styles.errorBox}>
+          <Text style={styles.errorText}>{error}</Text>
+          <SecondaryButton title="Reintentar" compact onPress={load} />
+        </View>
+      ) : null}
+      <FlatList data={rows} keyExtractor={(row) => String(row[0])} style={styles.gridList} contentContainerStyle={StyleSheet.flatten([styles.grid, isMobile && styles.mobileGrid])} showsVerticalScrollIndicator renderItem={({ item: row }) => <View style={StyleSheet.flatten([styles.gridRow, isMobile && styles.mobileGridRow])}>{row.map(renderDay)}{row.length < columns && Array.from({ length: columns - row.length }, (_, index) => <View key={`empty-${index}`} style={styles.dayPlaceholder} />)}</View>} ListFooterComponent={<View><View style={StyleSheet.flatten([styles.legend, isMobile && styles.mobileLegend])}>{[['past', 'Pasado sin marcar'], ['future', 'Por venir'], ['done', 'Todo bien'], ['partial', 'A medias'], ['miss', 'Sin cumplir']].map(([key, label]) => <View style={styles.legendItem} key={key}><Badge label=" " backgroundColor={visualColor(key as VisualState)} /><Text style={styles.legendText}>{label}</Text></View>)}</View><Text style={StyleSheet.flatten([styles.footer, isMobile && styles.mobileFooter])}>365 oportunidades {'\u00a0·\u00a0'} Aprovéchalas</Text></View>} />
     </Screen>
   );
 }
@@ -122,8 +129,8 @@ const styles = StyleSheet.create({
   userHeader: { width: '100%', maxWidth: 780, alignSelf: 'center', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 10, marginBottom: 20, gap: 12 },
   mobileUserHeader: { paddingHorizontal: 0, flexDirection: 'column', alignItems: 'stretch', gap: 10 },
   userInfo: { fontSize: 13, color: theme.colors.inkMid },
-  mainNav: { flexDirection: 'row', gap: 8 },
-  mobileMainNav: { flexDirection: 'column', gap: 8, width: '100%' },
+  mainNav: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
+  mobileMainNav: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   hero: { alignItems: 'center', marginBottom: 52 },
   tabletHero: { marginBottom: 36 },
   mobileHero: { marginBottom: 24 },
@@ -131,7 +138,7 @@ const styles = StyleSheet.create({
   tabletYear: { fontSize: 88, lineHeight: 82, letterSpacing: -2.5 },
   mobileYear: { fontSize: 52, lineHeight: 50, letterSpacing: -1.5 },
   tagline: { marginTop: 14, fontSize: 10, letterSpacing: 2.8, textTransform: 'uppercase', color: theme.colors.inkMid, fontStyle: 'italic', textAlign: 'center' },
-  mobileTagline: { fontSize: 8, letterSpacing: 2, marginTop: 8 },
+  mobileTagline: { fontSize: 11, letterSpacing: 2, marginTop: 8 },
   stats: { width: '100%', maxWidth: 780, alignSelf: 'center', flexDirection: 'row', borderWidth: 1, borderColor: theme.colors.inkFaint, borderRadius: 12, overflow: 'hidden', marginBottom: 48 },
   tabletStats: { marginBottom: 32 },
   mobileStats: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: 24, borderRadius: 10 },
@@ -141,10 +148,11 @@ const styles = StyleSheet.create({
   statNumber: { fontFamily: 'serif', fontSize: 28, lineHeight: 30, color: theme.colors.ink },
   mobileStatNumber: { fontSize: 24, lineHeight: 26 },
   statLabelRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, marginTop: 5 },
-  statLabel: { fontSize: 9, letterSpacing: 1.6, textTransform: 'uppercase', color: theme.colors.inkMid, textAlign: 'center' },
+  statLabel: { fontSize: 11, letterSpacing: 1.2, textTransform: 'uppercase', color: theme.colors.inkMid, textAlign: 'center' },
   dot: { width: 7, height: 7, borderRadius: 4 },
-  error: { width: '100%', maxWidth: 780, alignSelf: 'center', color: theme.colors.error, marginBottom: 16 },
-  gridList: { width: '100%', maxWidth: 780, alignSelf: 'center', flexGrow: 0 },
+  errorBox: { width: '100%', maxWidth: 780, alignSelf: 'center', backgroundColor: '#ffebee', borderWidth: 1, borderColor: theme.colors.error, borderRadius: 6, padding: 10, marginBottom: 16, gap: 8 },
+  errorText: { color: theme.colors.error },
+  gridList: { width: '100%', maxWidth: 780, alignSelf: 'center', flexGrow: 1, flexShrink: 1 },
   grid: { width: '100%' },
   mobileGrid: { width: '100%' },
   gridRow: { flexDirection: 'row', width: '100%', gap: 4, marginBottom: 4 },
@@ -157,7 +165,7 @@ const styles = StyleSheet.create({
   legend: { width: '100%', maxWidth: 780, alignSelf: 'center', flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 20, marginTop: 36 },
   mobileLegend: { gap: 8, marginTop: 20 },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  legendText: { fontSize: 9, letterSpacing: 1.6, textTransform: 'uppercase', color: theme.colors.inkMid },
-  footer: { marginTop: 60, fontSize: 9, letterSpacing: 2, textTransform: 'uppercase', color: theme.colors.inkMid, textAlign: 'center' },
+  legendText: { fontSize: 11, letterSpacing: 1.2, textTransform: 'uppercase', color: theme.colors.inkMid },
+  footer: { marginTop: 60, fontSize: 11, letterSpacing: 1.6, textTransform: 'uppercase', color: theme.colors.inkMid, textAlign: 'center' },
   mobileFooter: { marginTop: 32 },
 });
