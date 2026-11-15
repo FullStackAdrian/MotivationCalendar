@@ -1,6 +1,6 @@
 import React from 'react';
-import { render, fireEvent } from '@testing-library/react-native';
-import { Platform, KeyboardAvoidingView } from 'react-native';
+import { render, fireEvent, act } from '@testing-library/react-native';
+import { Keyboard, Platform, KeyboardAvoidingView, StyleSheet } from 'react-native';
 import { describeNative } from './helpers/projects';
 import LoginScreen from '../src/screens/login-screen';
 import RegisterScreen from '../src/screens/register-screen';
@@ -67,12 +67,47 @@ describeNative('keyboard avoiding (Android adjustResize)', () => {
         });
       return Promise.resolve({ data: [] });
     });
-    const { findByText, getByText, UNSAFE_getAllByType } = render(<KanbanScreen />);
+    const { findByText, getByText, UNSAFE_queryAllByType } = render(<KanbanScreen />);
     await findByText('Sin tareas');
     fireEvent.press(getByText('Nueva tarea'));
     await findByText('Crear tarea');
-    const nodes = UNSAFE_getAllByType(KeyboardAvoidingView) as any[];
-    expect(nodes.length).toBeGreaterThan(0);
+    const nodes = UNSAFE_queryAllByType(KeyboardAvoidingView) as any[];
     for (const n of nodes) expect(n.props.behavior).not.toBe('height');
+  });
+
+  it('kanban ModalShell añade padding inferior con la altura del teclado en Android', async () => {
+    Object.defineProperty(Platform, 'OS', { value: 'android', configurable: true });
+    const showHandlers: Array<(event: { endCoordinates: { height: number } }) => void> = [];
+    const keyboardSpy = jest.spyOn(Keyboard, 'addListener').mockImplementation(((event: string, handler: (event: { endCoordinates: { height: number } }) => void) => {
+      if (event === 'keyboardDidShow') showHandlers.push(handler);
+      return { remove: jest.fn() };
+    }) as never);
+    try {
+      http().get.mockImplementation((url: string) => {
+        if (url === '/api/kanban/boards') return Promise.resolve({ data: [{ id: 'b1', name: 'Sprint' }] });
+        if (url === '/api/kanban/boards/b1')
+          return Promise.resolve({
+            data: { id: 'b1', name: 'Sprint', columns: [{ id: 'c1', name: 'Todo', color: '#fff', position: 0 }], tasks: [] },
+          });
+        return Promise.resolve({ data: [] });
+      });
+      const { findByText, getByText, UNSAFE_getAllByType } = render(<KanbanScreen />);
+      await findByText('Sin tareas');
+      fireEvent.press(getByText('Nueva tarea'));
+      await findByText('Crear tarea');
+      const { View } = require('react-native') as { View: React.ComponentType<unknown> };
+      const views = UNSAFE_getAllByType(View) as any[];
+      const paddedBefore = views.filter((v) => StyleSheet.flatten(v.props.style)?.paddingBottom === 500);
+      expect(paddedBefore).toHaveLength(0);
+      act(() => {
+        for (const handler of showHandlers) handler({ endCoordinates: { height: 500 } });
+      });
+      const paddedAfter = UNSAFE_getAllByType(View).filter(
+        (v: any) => StyleSheet.flatten(v.props.style)?.paddingBottom === 500
+      );
+      expect(paddedAfter.length).toBeGreaterThan(0);
+    } finally {
+      keyboardSpy.mockRestore();
+    }
   });
 });
