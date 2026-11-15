@@ -6,6 +6,10 @@ están verificados como CORREGIDOS en el build con los cambios de esta rama.
 
 ## Bugs confirmados → CORREGIDOS y verificados en emulador
 
+Revisión de confirmación (16/11, build final `eb61f18`, QWERTY, usuario `nigg`):
+KB-01…KB-06 vuelven a verificarse uno por uno con teclado QWERTY completo;
+0 nodos degenerados en `uiautomator` en todos los casos y CTAs visibles.
+
 - [x] **KB-01 — Login: logo recortado.** Causa: `KeyboardAvoidingView`
   `behavior="height"` en Android (doble encogido con `adjustResize`) +
   contenido centrado. Fix: KAV solo en iOS (`undefined` en Android) +
