@@ -2,11 +2,11 @@ import React, { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { SafeAreaInsetsContext } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { AppHeader, Badge, Field, PrimaryButton, Screen, SecondaryButton } from '@/components/ui';
+import { AppHeader, Badge, Field, ModalFocusScrollContext, PrimaryButton, Screen, SecondaryButton } from '@/components/ui';
 import { Icon } from '@/components/icon';
 import { useAuth } from '@/contexts/auth-context';
 import { useResponsive } from '@/hooks/use-responsive';
-import { useScrollToFocusedInput } from '@/hooks/use-scroll-to-focused-input';
+import { useScrollFocusedIntoView, useScrollToFocusedInput } from '@/hooks/use-scroll-to-focused-input';
 import { Board, BoardMember, KanbanRepository, Task } from '@/infrastructure/kanban/kanban.repository';
 import { friendlyAuthError } from '@/screens/auth-error';
 import { theme } from '@/theme';
@@ -406,6 +406,7 @@ function ModalShell({ title, onClose, children, footer }: { title: string; onClo
   const bottom = insets?.bottom ?? 0;
   const scrollRef = useRef<ScrollView>(null);
   useScrollToFocusedInput(scrollRef);
+  const scrollFocusedIntoView = useScrollFocusedIntoView(scrollRef);
   return (
     <View style={[styles.overlay, { paddingBottom: Math.max(16, bottom + 8) }]}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.avoid}>
@@ -414,9 +415,11 @@ function ModalShell({ title, onClose, children, footer }: { title: string; onClo
             <Text style={styles.closeText}>×</Text>
           </Pressable>
           <Text style={styles.modalTitle}>{title}</Text>
+          <ModalFocusScrollContext.Provider value={scrollFocusedIntoView}>
           <ScrollView ref={scrollRef} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator style={styles.modalBody} contentContainerStyle={styles.modalBodyContent}>
             {children}
           </ScrollView>
+          </ModalFocusScrollContext.Provider>
           {footer ? <View testID="modal-footer" style={styles.modalFooter}>{footer}</View> : null}
         </View>
       </KeyboardAvoidingView>

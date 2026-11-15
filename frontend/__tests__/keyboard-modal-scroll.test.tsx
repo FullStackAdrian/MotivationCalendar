@@ -1,4 +1,4 @@
-import { renderHook, fireEvent, act } from '@testing-library/react-native';
+import { renderHook, render, fireEvent, act } from '@testing-library/react-native';
 import { Keyboard, Platform, TextInput, UIManager } from 'react-native';
 import { useScrollToFocusedInput, useScrollFocusedIntoView, FOCUSED_FIELD_TOP_OFFSET } from '../src/hooks/use-scroll-to-focused-input';
 import { Field, ModalFocusScrollContext } from '@/components/ui';
