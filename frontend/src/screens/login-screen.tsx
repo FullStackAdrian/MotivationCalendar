@@ -29,10 +29,12 @@ export default function LoginScreen() {
       {error ? <Text style={styles.error}>{error}</Text> : null}<PrimaryButton title={loading ? 'Entrando…' : 'Entrar'} onPress={submit} disabled={loading || !identifier || !password} />
       <SecondaryButton title="Crear cuenta" onPress={() => router.push('/register')} />
     </View>
+    {Platform.OS === 'web' ? (
     <View style={styles.apkBlock}>
       <Text style={styles.apkHint}>¿Usas Android? Descarga el APK conectado a este mismo servidor.</Text>
       <DownloadApkButton />
     </View>
+    ) : null}
   </ScrollView></KeyboardAvoidingView></Screen>;
 }
 

@@ -6,10 +6,31 @@
     "orientation": "portrait",
     "scheme": "motivationcalendar",
     "userInterfaceStyle": "light",
-    "plugins": ["expo-router", "expo-secure-store"],
-    "experiments": { "typedRoutes": true },
-    "web": { "bundler": "metro", "output": "static", "favicon": "./assets/favicon.png" },
-    "android": { "package": "com.fullstackadrian.motivationcalendar" },
-    "ios": { "bundleIdentifier": "com.fullstackadrian.motivationcalendar" }
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true
+          }
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static",
+      "favicon": "./assets/favicon.png"
+    },
+    "android": {
+      "package": "com.fullstackadrian.motivationcalendar"
+    },
+    "ios": {
+      "bundleIdentifier": "com.fullstackadrian.motivationcalendar"
+    }
   }
 }
