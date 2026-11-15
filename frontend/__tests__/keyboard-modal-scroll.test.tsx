@@ -90,8 +90,8 @@ describeNative('KB-05 scroll al campo enfocado en modales', () => {
     renderHook(() => useScrollToFocusedInput(ref as never));
     fireKeyboardShow();
     expect(scrollNative).toHaveBeenCalledWith(456, FOCUSED_FIELD_TOP_OFFSET, true);
-    expect(measureMock).not.toHaveBeenCalled();
-    expect(scrollTo).not.toHaveBeenCalled();
+    expect(measureMock).toHaveBeenCalled();
+    expect(scrollTo).toHaveBeenCalledWith({ y: 500 - FOCUSED_FIELD_TOP_OFFSET, animated: true });
   });
 
   it('recurre a measureLayout si no hay responder nativo', () => {

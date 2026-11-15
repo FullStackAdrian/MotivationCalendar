@@ -59,13 +59,12 @@ export function useScrollToFocusedInput(scrollRef: ScrollRef, topOffset = FOCUSE
         const field = currentlyFocusedField();
         if (field == null) return;
         const responder = scrollResponderFor(scroll);
+        const measureLayout = (UIManager as unknown as { measureLayout?: unknown }).measureLayout;
+        const inner = scroll.getInnerViewNode();
         try {
           if (responder?.scrollResponderScrollNativeHandleToKeyboard) {
             responder.scrollResponderScrollNativeHandleToKeyboard(field, topOffset, true);
-            return;
           }
-          const measureLayout = (UIManager as unknown as { measureLayout?: unknown }).measureLayout;
-          const inner = scroll.getInnerViewNode();
           if (inner == null || typeof measureLayout !== 'function') return;
           (measureLayout as (
             node: unknown,
