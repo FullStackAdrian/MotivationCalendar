@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, fireEvent, waitFor } from '@testing-library/react-native';
+import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
 import { Keyboard, TextInput } from 'react-native';
 import { useAuth } from '../src/contexts/auth-context';
 import { describeNative } from './helpers/projects';
@@ -39,10 +39,14 @@ const hideHandlers: KbHandler[] = [];
 let keyboardSpy: jest.SpyInstance;
 
 function pressShow(): void {
-  for (const handler of showHandlers) handler();
+  act(() => {
+    for (const handler of showHandlers) handler();
+  });
 }
 function pressHide(): void {
-  for (const handler of hideHandlers) handler();
+  act(() => {
+    for (const handler of hideHandlers) handler();
+  });
 }
 
 beforeEach(() => {
@@ -82,16 +86,10 @@ describeNative('KB-01/KB-04 hero oculto con teclado', () => {
 });
 
 describeNative('KB-02 avance y envío desde el teclado', () => {
-  function identifierAndPassword(): { identifier: unknown; password: unknown } {
+  it('login encadena foco con returnKeyType next/done', () => {
     const { UNSAFE_getAllByType } = render(<LoginScreen />);
     const inputs = UNSAFE_getAllByType(TextInput) as unknown as Array<{ props: Record<string, unknown> }>;
-    const identifier = inputs[0];
-    const password = inputs[1];
-    return { identifier, password };
-  }
-
-  it('login encadena foco con returnKeyType next/done', () => {
-    const { identifier, password } = identifierAndPassword();
+    const [identifier, password] = inputs;
     expect(identifier.props.returnKeyType).toBe('next');
     expect(password.props.returnKeyType).toBe('done');
     expect(typeof identifier.props.onSubmitEditing).toBe('function');

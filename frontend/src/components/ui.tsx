@@ -60,10 +60,9 @@ export function SecondaryButton({ title, onPress, disabled = false, compact = fa
   return <Pressable testID={testID} disabled={disabled} onPress={onPress} hitSlop={8} style={[styles.secondary, compact && styles.secondaryCompact, fullWidth && styles.fullWidth, disabled && styles.disabled]}>{content}</Pressable>;
 }
 
-export function Field({ label, ...props }: TextInputProps & { label: string }) {
-  return <View style={styles.field}><Text style={styles.label}>{label}</Text><TextInput {...props} placeholderTextColor={theme.colors.inkMid} style={[styles.input, props.multiline && styles.multiline]} /></View>;
-}
-
+export const Field = React.forwardRef<TextInput, TextInputProps & { label: string }>(function Field({ label, ...props }, ref) {
+  return <View style={styles.field}><Text style={styles.label}>{label}</Text><TextInput ref={ref} {...props} placeholderTextColor={theme.colors.inkMid} style={[styles.input, props.multiline && styles.multiline]} /></View>;
+});
 export function Badge({ label, backgroundColor = theme.colors.surface }: { label: string; backgroundColor?: string }) {
   return <View style={[styles.badge, { backgroundColor }]}><Text style={styles.badgeText}>{label}</Text></View>;
 }
