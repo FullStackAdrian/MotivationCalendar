@@ -87,10 +87,12 @@ export function scrollFocusedInputIntoView(
   const measureLayout = (UIManager as unknown as { measureLayout?: unknown }).measureLayout;
   const inner = scroll.getInnerViewNode();
   try {
-    if (responder?.scrollResponderScrollNativeHandleToKeyboard) {
-      responder.scrollResponderScrollNativeHandleToKeyboard(field, topOffset, true);
-    }
-    if (inner == null || typeof measureLayout !== 'function') return;
+    responder?.scrollResponderScrollNativeHandleToKeyboard?.(field, topOffset, true);
+  } catch {
+    // Responder no disponible: se intenta la medida manual.
+  }
+  if (inner == null || typeof measureLayout !== 'function') return;
+  try {
     (measureLayout as (
       node: unknown,
       ancestor: number,
