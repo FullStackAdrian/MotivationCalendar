@@ -21,7 +21,7 @@ export default function LoginScreen() {
     finally { setLoading(false); }
   };
 
-  return <Screen style={styles.center}><KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.avoid}><ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator>
+  return <Screen style={styles.center}><KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.avoid}><ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator>
     <Text style={styles.logo}>2026</Text><Text style={styles.subtitle}>Cada día que pasa, ya no vuelve</Text>
     <View style={styles.form}><Field label="Usuario o email" value={identifier} onChangeText={setIdentifier} autoCapitalize="none" autoCorrect={false} /><Field label="Contraseña" value={password} onChangeText={setPassword} secureTextEntry />
       {sessionExpired ? <Text style={styles.notice}>{SESSION_EXPIRED_NOTICE}</Text> : null}

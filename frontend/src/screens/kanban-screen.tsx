@@ -405,7 +405,7 @@ function ModalShell({ title, onClose, children, footer }: { title: string; onClo
   const bottom = insets?.bottom ?? 0;
   return (
     <View style={[styles.overlay, { paddingBottom: Math.max(16, bottom + 8) }]}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.avoid}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.avoid}>
         <View style={styles.modal}>
           <Pressable testID="modal-close" onPress={onClose} accessibilityLabel="Cerrar" style={styles.close}>
             <Text style={styles.closeText}>×</Text>
