@@ -101,3 +101,6 @@ Thumbs.db
 
 # TypeScript build output
 backend/dist/
+
+# APK publicado por scripts/build-android-apk.sh (binario, no versionar)
+backend/downloads/*.apk
