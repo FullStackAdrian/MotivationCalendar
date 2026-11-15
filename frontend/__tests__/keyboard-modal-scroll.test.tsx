@@ -1,6 +1,7 @@
-import { renderHook } from '@testing-library/react-native';
+import { renderHook, fireEvent, act } from '@testing-library/react-native';
 import { Keyboard, Platform, TextInput, UIManager } from 'react-native';
-import { useScrollToFocusedInput, FOCUSED_FIELD_TOP_OFFSET } from '../src/hooks/use-scroll-to-focused-input';
+import { useScrollToFocusedInput, useScrollFocusedIntoView, FOCUSED_FIELD_TOP_OFFSET } from '../src/hooks/use-scroll-to-focused-input';
+import { Field, ModalFocusScrollContext } from '@/components/ui';
 import { describeNative } from './helpers/projects';
 
 const handlers: Record<string, Array<() => void>> = { keyboardDidShow: [], keyboardDidHide: [] };
@@ -126,5 +127,33 @@ describeNative('KB-05 scroll al campo enfocado en modales', () => {
     const ref = { current: null };
     renderHook(() => useScrollToFocusedInput(ref as never));
     expect(keyboardSpy).not.toHaveBeenCalled();
+  });
+
+  it('useScrollFocusedIntoView desplaza al campo enfocado bajo demanda', () => {
+    Object.defineProperty(Platform, 'OS', { value: 'android', configurable: true });
+    focusedField(456);
+    const { ref, scrollNative, scrollTo } = responderRef();
+    const { result } = renderHook(() => useScrollFocusedIntoView(ref as never));
+    result.current();
+    expect(scrollNative).toHaveBeenCalledWith(456, FOCUSED_FIELD_TOP_OFFSET, true);
+    expect(scrollTo).toHaveBeenCalledWith({ y: 500 - FOCUSED_FIELD_TOP_OFFSET, animated: true });
+  });
+
+  it('Field avisa al contexto del modal al recibir foco y conserva onFocus', () => {
+    const onScroll = jest.fn();
+    const onFocus = jest.fn();
+    const { getByDisplayValue } = render(
+      <ModalFocusScrollContext.Provider value={onScroll}>
+        <Field label="Tags" value="" onChangeText={() => {}} onFocus={onFocus} />
+      </ModalFocusScrollContext.Provider>
+    );
+    fireEvent(getByDisplayValue(''), 'focus');
+    expect(onFocus).toHaveBeenCalled();
+    expect(onScroll).toHaveBeenCalled();
+  });
+
+  it('Field sin contexto de modal no falla al recibir foco', () => {
+    const { getByDisplayValue } = render(<Field label="Tags" value="" onChangeText={() => {}} />);
+    expect(() => fireEvent(getByDisplayValue(''), 'focus')).not.toThrow();
   });
 });

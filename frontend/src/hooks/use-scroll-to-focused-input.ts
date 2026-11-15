@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useCallback, useEffect } from 'react';
 import { Keyboard, Platform, TextInput, UIManager, type ScrollView } from 'react-native';
 import type { RefObject } from 'react';
 
@@ -50,35 +50,56 @@ function scrollResponderFor(scroll: ScrollTarget): {
  * En web no hace nada.
  */
 export function useScrollToFocusedInput(scrollRef: ScrollRef, topOffset = FOCUSED_FIELD_TOP_OFFSET): void {
+  const scrollFocusedIntoView = useScrollFocusedIntoView(scrollRef, topOffset);
   useEffect(() => {
     if (Platform.OS === 'web') return undefined;
     const subscription = Keyboard.addListener('keyboardDidShow', () => {
       nextFrame(() => {
-        const scroll = scrollRef.current;
-        if (scroll == null) return;
-        const field = currentlyFocusedField();
-        if (field == null) return;
-        const responder = scrollResponderFor(scroll);
-        const measureLayout = (UIManager as unknown as { measureLayout?: unknown }).measureLayout;
-        const inner = scroll.getInnerViewNode();
-        try {
-          if (responder?.scrollResponderScrollNativeHandleToKeyboard) {
-            responder.scrollResponderScrollNativeHandleToKeyboard(field, topOffset, true);
-          }
-          if (inner == null || typeof measureLayout !== 'function') return;
-          (measureLayout as (
-            node: unknown,
-            ancestor: number,
-            onFail: () => void,
-            onSuccess: (x: number, y: number, width: number, height: number) => void
-          ) => void).call(UIManager, field, inner as number, () => undefined, (_x, y) => {
-            scroll.scrollTo({ y: Math.max(0, y - topOffset), animated: true });
-          });
-        } catch {
-          // Medición no disponible (p. ej. vista desmontada): no bloquear el teclado.
-        }
+        scrollFocusedIntoView();
       });
     });
     return () => subscription.remove();
+  }, [scrollFocusedIntoView]);
+}
+
+/**
+ * Devuelve un callback que desplaza el ScrollView hasta el campo enfocado.
+ * Pensado para el `onFocus` de los campos: cubre el caso en que el teclado
+ * ya está abierto y por tanto no hay evento `keyboardDidShow`.
+ */
+export function useScrollFocusedIntoView(scrollRef: ScrollRef, topOffset = FOCUSED_FIELD_TOP_OFFSET): () => void {
+  return useCallback(() => {
+    if (Platform.OS === 'web') return;
+    nextFrame(() => {
+      scrollFocusedInputIntoView(scrollRef.current, topOffset);
+    });
   }, [scrollRef, topOffset]);
+}
+
+export function scrollFocusedInputIntoView(
+  scroll: ScrollTarget | null,
+  topOffset = FOCUSED_FIELD_TOP_OFFSET
+): void {
+  if (scroll == null) return;
+  const field = currentlyFocusedField();
+  if (field == null) return;
+  const responder = scrollResponderFor(scroll);
+  const measureLayout = (UIManager as unknown as { measureLayout?: unknown }).measureLayout;
+  const inner = scroll.getInnerViewNode();
+  try {
+    if (responder?.scrollResponderScrollNativeHandleToKeyboard) {
+      responder.scrollResponderScrollNativeHandleToKeyboard(field, topOffset, true);
+    }
+    if (inner == null || typeof measureLayout !== 'function') return;
+    (measureLayout as (
+      node: unknown,
+      ancestor: number,
+      onFail: () => void,
+      onSuccess: (x: number, y: number, width: number, height: number) => void
+    ) => void).call(UIManager, field, inner as number, () => undefined, (_x, y) => {
+      scroll.scrollTo({ y: Math.max(0, y - topOffset), animated: true });
+    });
+  } catch {
+    // Medición no disponible (p. ej. vista desmontada): no bloquear el teclado.
+  }
 }
