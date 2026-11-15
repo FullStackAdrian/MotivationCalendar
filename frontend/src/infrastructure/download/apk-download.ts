@@ -13,7 +13,9 @@ export const APK_FILE_PATH = `/downloads/${APK_FILE_NAME}`;
 export function getApkDownloadUrl(apiBaseUrl?: string): string {
   const override = process.env.EXPO_PUBLIC_ANDROID_APK_URL;
   if (override && override.trim().length > 0) return override.trim();
-  const raw = apiBaseUrl ?? process.env.EXPO_PUBLIC_API_URL ?? defaultBaseUrl();
+  // Sin base explícita se usa la misma resolución que el resto de la app
+  // (respeta proxy nginx con '' y corrige localhost horneado en páginas LAN).
+  const raw = apiBaseUrl ?? defaultBaseUrl();
   const base = (raw ?? '').trim();
   if (!base) return APK_FILE_PATH;
   return `${base.replace(/\/$/, '')}${APK_FILE_PATH}`;

@@ -40,4 +40,21 @@ describe('apk-download url resolution', () => {
     process.env.EXPO_PUBLIC_API_URL = 'https://backend.example.com';
     expect(getApkDownloadUrl()).toBe('https://backend.example.com/downloads/motivation-calendar.apk');
   });
+
+  it('ignores localhost horneado en paginas LAN (el localhost del movil no es el server)', () => {
+    const prevDesc = Object.getOwnPropertyDescriptor(globalThis, 'window');
+    delete process.env.EXPO_PUBLIC_ANDROID_APK_URL;
+    process.env.EXPO_PUBLIC_API_URL = 'http://localhost:3000';
+    Object.defineProperty(globalThis, 'window', {
+      value: { location: { hostname: '192.168.1.40', protocol: 'http:', port: '8099' } },
+      configurable: true,
+      writable: true,
+    });
+    try {
+      expect(getApkDownloadUrl()).toBe('http://192.168.1.40:3000/downloads/motivation-calendar.apk');
+    } finally {
+      if (prevDesc) Object.defineProperty(globalThis, 'window', prevDesc);
+      else delete (globalThis as Record<string, unknown>).window;
+    }
+  });
 });

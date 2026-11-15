@@ -6,7 +6,32 @@ export class ApiError extends Error { constructor(message: string, public readon
 
 /** URL base: configurable vía EXPO_PUBLIC_API_URL; en emulador Android `localhost` no existe. */
 export function defaultBaseUrl(): string {
-  return process.env.EXPO_PUBLIC_API_URL ?? (Platform.OS === 'android' ? 'http://10.0.2.2:3000' : 'http://localhost:3000');
+  const fromEnv = process.env.EXPO_PUBLIC_API_URL;
+  // `window` como identificador falla en jsdom/node-jest; leer vía globalThis.
+  const pageWindow = (globalThis as unknown as { window?: { location?: { hostname?: string; protocol?: string } } }).window;
+  const pageHost = pageWindow?.location?.hostname;
+  const onLanPage = !!pageHost && pageHost !== 'localhost' && pageHost !== '127.0.0.1';
+  if (fromEnv !== undefined && fromEnv !== null) {
+    // Una API horneada como localhost es inalcanzable desde un cliente en LAN
+    // (el localhost del móvil es el propio móvil): derivar del host de la página.
+    try {
+      const envHost = new URL(fromEnv).hostname;
+      if (onLanPage && (envHost === 'localhost' || envHost === '127.0.0.1')) {
+        const protocol = pageWindow?.location?.protocol === 'https:' ? 'https:' : 'http:';
+        return `${protocol}//${pageHost}:3000`;
+      }
+    } catch {
+      // fromEnv no es URL absoluta (p. ej. '' para proxy nginx): respetar tal cual.
+    }
+    return fromEnv;
+  }
+  // Web servida desde otra máquina (p. ej. móvil en LAN): derivar el backend
+  // del propio host de la página para no depender de la URL horneada.
+  if (onLanPage) {
+    const protocol = pageWindow?.location?.protocol === 'https:' ? 'https:' : 'http:';
+    return `${protocol}//${pageHost}:3000`;
+  }
+  return Platform.OS === 'android' ? 'http://10.0.2.2:3000' : 'http://localhost:3000';
 }
 
 export class ApiClient {
