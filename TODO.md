@@ -1,54 +1,58 @@
 # TODO — Vistas móvil con teclado fijo (revisión manual en emulador)
 
 Revisado en: `expo-pixel` (1080x2400, Android), usuario `nigg`, teclado QWERTY
-(Gboard). Build instalada = anterior al fix KAV de esta rama
-(`KeyboardAvoidingView behavior="height"` en Android + `adjustResize`).
-Las vistas sin teclado están todas OK.
+(Gboard). Todos los bugs de abajo se reproducían en el build anterior al fix y
+están verificados como CORREGIDOS en el build con los cambios de esta rama.
 
-## Bugs confirmados (con teclado abierto)
+## Bugs confirmados → CORREGIDOS y verificados en emulador
 
-- [ ] **KB-01 — Login: logo recortado.** Con QWERTY abierto el ScrollView
-  centra el contenido y el `2026` queda cortado por arriba. No se puede hacer
-  scroll hasta él.
-  `frontend/src/screens/login-screen.tsx` (KAV + `container` centrado).
-- [ ] **KB-02 — Login: `Entrar`/`Crear cuenta` inalcanzables.** Con foco en
-  `Contraseña` los botones quedan tras el teclado; obligan a cerrarlo para
-  poder entrar.
-- [ ] **KB-03 — Login/Register: el foco no hace scroll al campo.** Al enfocar
-  `Contraseña`, el campo queda tras el teclado (bounds degenerados en
-  `uiautomator`: `[116,1620][965,1517]`). Solo TAB lo trae a vista.
-- [ ] **KB-04 — Register: igual que KB-01/KB-03.** Logo recortado y campo
-  enfocado oculto tras el teclado.
-  `frontend/src/screens/register-screen.tsx`.
-- [ ] **KB-05 — Modal `Nueva tarea` colapsa con QWERTY.** Desaparecen
-  Estado, Asignar a, Prioridad, Puntos, Fecha, Hora, Frecuencia y Tags; solo
-  quedan Título y `Crear tarea`. En `uiautomator` todos los hijos salen con
-  altura negativa (p. ej. Tags `[116,1660][965,1242]`, `Frecuencia`
-  `[116,1403][965,1242]`). Con foco en Tags, el campo enfocado tampoco se ve.
-  `frontend/src/screens/kanban-screen.tsx` (`ModalShell`).
-- [ ] **KB-06 — Modal `Nueva pizarra` colapsa con QWERTY.** Desaparecen
-  `Nombre` y las etiquetas; solo input + `Crear pizarra`. Mismo `ModalShell`.
+- [x] **KB-01 — Login: logo recortado.** Causa: `KeyboardAvoidingView`
+  `behavior="height"` en Android (doble encogido con `adjustResize`) +
+  contenido centrado. Fix: KAV solo en iOS (`undefined` en Android) +
+  `useKeyboardVisible` oculta logo/subtítulo con teclado abierto.
+  Verificado: formulario completo visible con teclado, sin recortes.
+- [x] **KB-02 — Login: `Entrar` inalcanzable.** Con el hero oculto, `Entrar`
+  queda visible sobre el teclado; además `returnKeyType="done"` en Contraseña
+  envía el login desde el teclado (verificado: login solo con teclado).
+- [x] **KB-03 — Login/Register: el foco no hacía scroll al campo.** Con el
+  layout ya sin colapso, Android lleva el campo a la vista; verificado con
+  foco en Contraseña/Tags visible sobre el teclado.
+- [x] **KB-04 — Register: igual que KB-01/KB-03.** Mismo fix (hero oculto).
+  Verificado: logo fuera, campo enfocado con cursor visible, `Crear cuenta`
+  accesible.
+- [x] **KB-05 — Modal `Nueva tarea` colapsaba con QWERTY** (desaparecían
+  Estado/Asignar/Prioridad/Puntos/Fecha/Frecuencia/Tags; bounds con altura
+  negativa en `uiautomator`). Fix: `useScrollToFocusedInput` en `ModalShell`
+  (responder nativo del ScrollView + fallback `measureLayout`).
+  Verificado: auto-scroll hasta Tags enfocado + CTA `Crear tarea` visible.
+- [x] **KB-06 — Modal `Nueva pizarra` colapsaba con QWERTY.** Mismo `ModalShell`
+  y mismo fix. Verificado: Nombre + Descripción + `Crear pizarra` visibles.
 
-## Verificado OK (no tocar salvo regresión)
+## Verificado OK (sin cambios, sin regresión)
 
 - Login/Register/Calendar/Kanban/Archive (ruta y modal) sin teclado.
 - Modales `Nueva pizarra` / `Nuevo estado` / `Nueva tarea` cerrados.
-- Modal `Nuevo estado` + teclado numérico (WIP): auto-scroll al campo, CTA
-  visible y scroll manual hasta `Nombre` OK. Referencia de comportamiento bueno.
-- Modal `Nueva tarea` + `Semanal`: fila de días L–D, Tags y CTA correctos con
-  scroll (sin teclado).
+- Modal `Nuevo estado` + teclado numérico (WIP): auto-scroll, CTA y scroll
+  manual OK.
+- Modal `Nueva tarea` + `Semanal`: fila de días L–D, Tags y CTA con scroll OK.
+
+## Cambios de esta rama (resumen)
+
+- `frontend/src/hooks/use-keyboard-visible.ts` (nuevo).
+- `frontend/src/hooks/use-scroll-to-focused-input.ts` (nuevo).
+- `Field` reenvía `ref` (`frontend/src/components/ui.tsx`).
+- Login/register: hero oculto con teclado, `returnKeyType` next/done con
+  avance de foco y envío con guardas.
+- Kanban `ModalShell`: KAV solo iOS + scroll al campo enfocado.
+- `app.json` + dep `expo-build-properties`: `usesCleartextTraffic` para el
+  backend local http en el APK.
+- Tests: `keyboard-avoiding`, `keyboard-auth`, `keyboard-modal-scroll`
+  (jest verde), `tsc`, smoke Expo y suite backend verdes.
 
 ## Notas de entorno (no son bugs de la app)
 
 - Gboard del emulador salta solo a handwriting/stylus con taps `adb` y muestra
-  el tutorial "Try out your stylus" que tapa la app. Se recupera con QWERTY vía
-  menú `Show on-screen keyboard` o `pm clear` + reboot. En dispositivo real no
-  aplica.
-- Tras el reboot, `screencap` salió negro hasta forzar parada y arranque en
-  frío de la app (la jerarquía `uiautomator` sí renderizaba).
-
-## Seguimiento
-
-- Esta rama ya cambia el KAV a `behavior={ios ? 'padding' : undefined}` en
-  login/register/`ModalShell` + test `keyboard-avoiding.test.tsx`.
-- Pendiente: rebuild del APK, instalar y re-verificar KB-01…KB-06 con teclado.
+  el tutorial "Try out your stylus" que tapa la app (se cierra con BACK).
+  En dispositivo real no aplica.
+- Tras `pm clear` de Gboard o reboot, `screencap` puede salir negro hasta
+  arranque en frío de la app; la jerarquía `uiautomator` sí renderizaba.
