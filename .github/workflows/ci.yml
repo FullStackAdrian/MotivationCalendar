@@ -106,7 +106,7 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
       - name: TDD unit and component tests
-        run: npm test
+        run: npx jest --runInBand --reporters=github-actions
       - name: Coverage
         run: npm run test:coverage
       - name: Upload frontend coverage
