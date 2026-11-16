@@ -106,15 +106,17 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
       - name: TDD unit and component tests
-        run: npx jest --runInBand --reporters=default --reporters=./debug-reporter.js
+        run: npx jest --runInBand --reporters=default --reporters=./debug-reporter.js 2>&1 | tee /tmp/jest-full.log; echo "JEST_PIPE_EXIT:${PIPESTATUS[0]}"
       - name: Expose jest failures (debug temporal)
-        if: failure()
+        if: always()
         run: |
-          echo "=== JEST FAILURES BEGIN ==="
-          cat /tmp/jest-failures.txt 2>/dev/null || echo "no failures file"
-          echo "=== JEST FAILURES END ==="
-          MSG=$(tr '\n' ' ' < /tmp/jest-failures.txt 2>/dev/null | cut -c1-3500)
-          echo "::warning::$MSG"
+          echo "=== SUMMARY ==="; grep -aE "^(FAIL|Tests:|Test Suites:|Snapshots:)" /tmp/jest-full.log | head -30 || true
+          echo "=== TAIL ==="; tail -c 2500 /tmp/jest-full.log || true
+          echo "=== REPORTER FILE ==="; cat /tmp/jest-failures.txt 2>/dev/null || echo "no failures file"
+          SUM=$(grep -aE "^(FAIL|Tests:|Test Suites:)" /tmp/jest-full.log | tr '\n' ';' | cut -c1-3000)
+          echo "::warning::SUMMARY::$SUM"
+          TAIL2=$(tail -c 1500 /tmp/jest-full.log | tr -d '\000' | tr '\n' ' ' | cut -c1-3000)
+          echo "::warning::TAIL::$TAIL2"
       - name: Coverage
         run: npm run test:coverage
       - name: Upload frontend coverage
