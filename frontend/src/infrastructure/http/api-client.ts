@@ -5,18 +5,20 @@ import { TokenStorage } from '../auth/token-storage';
 export class ApiError extends Error { constructor(message: string, public readonly status?: number) { super(message); this.name = 'ApiError'; } }
 
 /** URL base: configurable vía EXPO_PUBLIC_API_URL; en emulador Android `localhost` no existe. */
+const LOOPBACK_HOSTS = ['localhost', '127.0.0.1']; // EXPO_PUBLIC_API_URL: solo fallback local, nunca destino en LAN
+
 export function defaultBaseUrl(): string {
   const fromEnv = process.env.EXPO_PUBLIC_API_URL;
   // `window` como identificador falla en jsdom/node-jest; leer vía globalThis.
   const pageWindow = (globalThis as unknown as { window?: { location?: { hostname?: string; protocol?: string } } }).window;
   const pageHost = pageWindow?.location?.hostname;
-  const onLanPage = !!pageHost && pageHost !== 'localhost' && pageHost !== '127.0.0.1';
+  const onLanPage = !!pageHost && !LOOPBACK_HOSTS.includes(pageHost);
   if (fromEnv !== undefined && fromEnv !== null) {
-    // Una API horneada como localhost es inalcanzable desde un cliente en LAN
-    // (el localhost del móvil es el propio móvil): derivar del host de la página.
+    // Una API horneada como bucle local es inalcanzable desde un cliente en LAN
+    // (el bucle local del móvil es el propio móvil): derivar del host de la página.
     try {
       const envHost = new URL(fromEnv).hostname;
-      if (onLanPage && (envHost === 'localhost' || envHost === '127.0.0.1')) {
+      if (onLanPage && LOOPBACK_HOSTS.includes(envHost)) {
         const protocol = pageWindow?.location?.protocol === 'https:' ? 'https:' : 'http:';
         return `${protocol}//${pageHost}:3000`;
       }
@@ -31,7 +33,7 @@ export function defaultBaseUrl(): string {
     const protocol = pageWindow?.location?.protocol === 'https:' ? 'https:' : 'http:';
     return `${protocol}//${pageHost}:3000`;
   }
-  return Platform.OS === 'android' ? 'http://10.0.2.2:3000' : 'http://localhost:3000';
+  return Platform.OS === 'android' ? 'http://10.0.2.2:3000' : 'http://localhost:3000'; // EXPO_PUBLIC_API_URL fallback local
 }
 
 export class ApiClient {
