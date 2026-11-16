@@ -106,7 +106,15 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
       - name: TDD unit and component tests
-        run: npm test
+        run: npx jest --runInBand --reporters=default --reporters=./debug-reporter.js
+      - name: Expose jest failures (debug temporal)
+        if: failure()
+        run: |
+          echo "=== JEST FAILURES BEGIN ==="
+          cat /tmp/jest-failures.txt 2>/dev/null || echo "no failures file"
+          echo "=== JEST FAILURES END ==="
+          MSG=$(tr '\n' ' ' < /tmp/jest-failures.txt 2>/dev/null | cut -c1-3500)
+          echo "::warning::$MSG"
       - name: Coverage
         run: npm run test:coverage
       - name: Upload frontend coverage
