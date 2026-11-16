@@ -38,6 +38,23 @@ jest.mock('axios', () => {
 const http = (): { get: jest.Mock } =>
   (axios as unknown as { __instance: { get: jest.Mock } }).__instance;
 
+// El preset RN polifilea requestAnimationFrame con un setTimeout real
+// (setup.js: setTimeout(() => callback(jest.now()), 0)). En runners lentos ese
+// timer dispara tras el teardown del fichero y jest aborta con exit 1 aunque
+// todo esté en verde. Se mockea síncrono como ya hace keyboard-modal-scroll.
+let rafSpy: jest.SpyInstance;
+
+beforeEach(() => {
+  rafSpy = jest.spyOn(globalThis, 'requestAnimationFrame').mockImplementation(((callback: () => void) => {
+    callback();
+    return 0;
+  }) as never);
+});
+
+afterEach(() => {
+  rafSpy.mockRestore();
+});
+
 describeNative('keyboard avoiding (Android adjustResize)', () => {
   const OLD_OS = Platform.OS;
 
