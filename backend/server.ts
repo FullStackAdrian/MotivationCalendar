@@ -3,6 +3,7 @@ import cors from 'cors';
 import express, { type NextFunction, type Request, type Response } from 'express';
 import { config } from './infrastructure/config/config';
 import authRoutes from './infrastructure/routes/auth';
+import downloadsRouter, { downloadsInfoRouter } from './infrastructure/routes/downloads';
 import kanbanRoutes from './infrastructure/routes/kanban';
 import progressRoutes from './infrastructure/routes/progress';
 import { closeDatabase, initializeDatabase, sequelize } from './infrastructure/models/database';
@@ -56,6 +57,8 @@ if (config.nodeEnv === 'development') {
 app.use('/api/auth', authRoutes);
 app.use('/api/progress', progressRoutes);
 app.use('/api/kanban', kanbanRoutes);
+app.use('/api/downloads', downloadsInfoRouter);
+app.use('/downloads', downloadsRouter);
 
 app.get('/api/health', async (req: Request, res: Response) => {
   try {

@@ -63,6 +63,44 @@ describe('defaultBaseUrl', () => {
       jest.restoreAllMocks();
     }
   });
+
+  it('derives backend host from page location on web LAN (sin re-export)', () => {
+    const prevDesc = Object.getOwnPropertyDescriptor(globalThis, 'window');
+    const prevEnv = process.env.EXPO_PUBLIC_API_URL;
+    Object.defineProperty(globalThis, 'window', {
+      value: { location: { hostname: '192.168.1.40', protocol: 'http:', port: '8099' } },
+      configurable: true,
+      writable: true,
+    });
+    delete process.env.EXPO_PUBLIC_API_URL;
+    try {
+      expect(defaultBaseUrl()).toBe('http://192.168.1.40:3000');
+    } finally {
+      if (prevDesc) Object.defineProperty(globalThis, 'window', prevDesc);
+      else delete (globalThis as Record<string, unknown>).window;
+      if (prevEnv === undefined) delete process.env.EXPO_PUBLIC_API_URL;
+      else process.env.EXPO_PUBLIC_API_URL = prevEnv;
+    }
+  });
+
+  it('ignores localhost horneado cuando la pagina esta en LAN', () => {
+    const prevDesc = Object.getOwnPropertyDescriptor(globalThis, 'window');
+    const prevEnv = process.env.EXPO_PUBLIC_API_URL;
+    Object.defineProperty(globalThis, 'window', {
+      value: { location: { hostname: '192.168.1.40', protocol: 'http:', port: '8099' } },
+      configurable: true,
+      writable: true,
+    });
+    process.env.EXPO_PUBLIC_API_URL = 'http://localhost:3000';
+    try {
+      expect(defaultBaseUrl()).toBe('http://192.168.1.40:3000');
+    } finally {
+      if (prevDesc) Object.defineProperty(globalThis, 'window', prevDesc);
+      else delete (globalThis as Record<string, unknown>).window;
+      if (prevEnv === undefined) delete process.env.EXPO_PUBLIC_API_URL;
+      else process.env.EXPO_PUBLIC_API_URL = prevEnv;
+    }
+  });
 });
 
 describe('ApiClient', () => {
