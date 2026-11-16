@@ -106,13 +106,7 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
       - name: TDD unit and component tests
-        run: |
-          set +e
-          npm test 2>&1 | tee /tmp/jest.log; CODE=${PIPESTATUS[0]}
-          echo "JEST_EXIT_CODE=$CODE"
-          TAIL=$(tail -c 4000 /tmp/jest.log | tr '\n' ' ' | cut -c1-4000)
-          echo "::warning::$TAIL"
-          exit $CODE
+        run: npm test
       - name: Coverage
         run: npm run test:coverage
       - name: Upload frontend coverage
