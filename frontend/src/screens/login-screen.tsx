@@ -2,6 +2,7 @@ import React, { useRef, useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Field, PrimaryButton, Screen, SecondaryButton } from '@/components/ui';
+import { DownloadApkButton } from '@/components/download-apk-button';
 import { useAuth } from '@/contexts/auth-context';
 import { useKeyboardVisible } from '@/hooks/use-keyboard-visible';
 import { SESSION_EXPIRED_NOTICE, friendlyAuthError } from '@/screens/auth-error';
@@ -34,7 +35,13 @@ export default function LoginScreen() {
       {error ? <Text style={styles.error}>{error}</Text> : null}<PrimaryButton title={loading ? 'Entrando…' : 'Entrar'} onPress={submit} disabled={!canSubmit} />
       <SecondaryButton title="Crear cuenta" onPress={() => router.push('/register')} />
     </View>
+    {Platform.OS === 'web' ? (
+    <View style={styles.apkBlock}>
+      <Text style={styles.apkHint}>¿Usas Android? Descarga el APK conectado a este mismo servidor.</Text>
+      <DownloadApkButton />
+    </View>
+    ) : null}
   </ScrollView></KeyboardAvoidingView></Screen>;
 }
 
-const styles = StyleSheet.create({ center: { justifyContent: 'center' }, avoid: { flex: 1, width: '100%' }, container: { width: '100%', maxWidth: 420, alignSelf: 'center', paddingVertical: 40, flexGrow: 1, justifyContent: 'center', paddingBottom: 48 }, logo: { fontFamily: 'serif', fontSize: 72, color: theme.colors.ink, textAlign: 'center' }, subtitle: { color: theme.colors.inkMid, textAlign: 'center', fontStyle: 'italic', letterSpacing: 2, marginBottom: 40 }, form: { gap: 16, backgroundColor: theme.colors.white, padding: 28, borderRadius: theme.radius.lg }, notice: { backgroundColor: '#fff8e1', color: theme.colors.ink, padding: 12, borderRadius: theme.radius.sm, overflow: 'hidden' }, error: { backgroundColor: '#ffebee', color: theme.colors.error, padding: 12, borderRadius: theme.radius.sm, overflow: 'hidden' } });
+const styles = StyleSheet.create({ center: { justifyContent: 'center' }, avoid: { flex: 1, width: '100%' }, container: { width: '100%', maxWidth: 420, alignSelf: 'center', paddingVertical: 40, flexGrow: 1, justifyContent: 'center', paddingBottom: 48 }, logo: { fontFamily: 'serif', fontSize: 72, color: theme.colors.ink, textAlign: 'center' }, subtitle: { color: theme.colors.inkMid, textAlign: 'center', fontStyle: 'italic', letterSpacing: 2, marginBottom: 40 }, form: { gap: 16, backgroundColor: theme.colors.white, padding: 28, borderRadius: theme.radius.lg }, apkBlock: { marginTop: 24, gap: 12, alignItems: 'center' }, apkHint: { color: theme.colors.inkMid, fontSize: 12, textAlign: 'center' }, notice: { backgroundColor: '#fff8e1', color: theme.colors.ink, padding: 12, borderRadius: theme.radius.sm, overflow: 'hidden' }, error: { backgroundColor: '#ffebee', color: theme.colors.error, padding: 12, borderRadius: theme.radius.sm, overflow: 'hidden' } });

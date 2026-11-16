@@ -4,3 +4,6 @@
 
 expo-env.d.ts
 # @end expo-cli
+# Nativo generado por `expo prebuild` (ver scripts/build-android-apk.sh)
+android/
+ios/
