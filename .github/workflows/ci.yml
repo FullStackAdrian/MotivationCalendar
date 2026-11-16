@@ -117,6 +117,11 @@ jobs:
           echo "::warning::SUMMARY::$SUM"
           TAIL2=$(tail -c 1500 /tmp/jest-full.log | tr -d '\000' | tr '\n' ' ' | cut -c1-3000)
           echo "::warning::TAIL::$TAIL2"
+          HEAD1=$(head -c 2500 /tmp/jest-full.log | tr -d '\000' | tr '\n' ' ' | cut -c1-2500)
+          echo "::warning::HEAD::$HEAD1"
+          echo "::warning::ENV::node:$(node --version) npm:$(npm --version) platform:$(uname -a | cut -c1-200)"
+          ERRS=$(grep -aoE "(heap out of memory|ENOMEM|EPIPE|Error:[^;]{0,120}|●[^;]{0,150}›[^;]{0,150}|failed to run[^;]{0,150})" /tmp/jest-full.log | head -8 | tr '\n' ';' | cut -c1-2500)
+          echo "::warning::ERRORS::$ERRS"
       - name: Coverage
         run: npm run test:coverage
       - name: Upload frontend coverage
