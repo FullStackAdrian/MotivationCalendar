@@ -1,21 +1,34 @@
-import React, { useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useRef, useState } from 'react';
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Field, PrimaryButton, Screen, SecondaryButton } from '@/components/ui';
 import { useAuth } from '@/contexts/auth-context';
+import { useKeyboardVisible } from '@/hooks/use-keyboard-visible';
 import { friendlyAuthError } from '@/screens/auth-error';
 import { theme } from '@/theme';
 
 export default function RegisterScreen() {
   const router = useRouter(); const { register } = useAuth();
   const [username, setUsername] = useState(''); const [email, setEmail] = useState(''); const [password, setPassword] = useState(''); const [error, setError] = useState(''); const [loading, setLoading] = useState(false);
-  const submit = async () => { setLoading(true); setError(''); try { await register(username.trim(), email.trim(), password); router.replace('/calendar'); } catch (e) { setError(friendlyAuthError(e, 'Error al registrar')); } finally { setLoading(false); } };
+  const emailRef = useRef<TextInput>(null);
+  const passwordRef = useRef<TextInput>(null);
+  const keyboardOpen = useKeyboardVisible();
+
+  const canSubmit = !loading && username.trim().length > 0 && email.trim().length > 0 && password.length > 0;
+
+  const submit = async () => {
+    if (!canSubmit) return;
+    setLoading(true); setError('');
+    try { await register(username.trim(), email.trim(), password); router.replace('/calendar'); }
+    catch (e) { setError(friendlyAuthError(e, 'Error al registrar')); }
+    finally { setLoading(false); }
+  };
   return (
     <Screen style={styles.center}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.avoid}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.avoid}>
         <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator>
-          <Text style={styles.logo}>2026</Text><Text style={styles.subtitle}>Empieza a aprovechar tus días</Text>
-          <View style={styles.form}><Field label="Usuario" value={username} onChangeText={setUsername} autoCapitalize="none" /><Field label="Email" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" /><Field label="Contraseña" value={password} onChangeText={setPassword} secureTextEntry />{error ? <Text style={styles.error}>{error}</Text> : null}<PrimaryButton title={loading ? 'Creando…' : 'Crear cuenta'} onPress={submit} disabled={loading || !username || !email || !password} /><SecondaryButton title="Ya tengo cuenta" onPress={() => router.back()} /></View>
+          {keyboardOpen ? null : (<><Text style={styles.logo}>2026</Text><Text style={styles.subtitle}>Empieza a aprovechar tus días</Text></>)}
+          <View style={styles.form}><Field label="Usuario" value={username} onChangeText={setUsername} autoCapitalize="none" returnKeyType="next" blurOnSubmit={false} onSubmitEditing={() => emailRef.current?.focus()} /><Field ref={emailRef} label="Email" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" returnKeyType="next" blurOnSubmit={false} onSubmitEditing={() => passwordRef.current?.focus()} /><Field ref={passwordRef} label="Contraseña" value={password} onChangeText={setPassword} secureTextEntry returnKeyType="done" onSubmitEditing={submit} />{error ? <Text style={styles.error}>{error}</Text> : null}<PrimaryButton title={loading ? 'Creando…' : 'Crear cuenta'} onPress={submit} disabled={!canSubmit} /><SecondaryButton title="Ya tengo cuenta" onPress={() => router.back()} /></View>
         </ScrollView>
       </KeyboardAvoidingView>
     </Screen>

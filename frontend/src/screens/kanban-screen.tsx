@@ -1,11 +1,12 @@
-import React, { useContext, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import React, { useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, Keyboard, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { SafeAreaInsetsContext } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { AppHeader, Badge, Field, PrimaryButton, Screen, SecondaryButton } from '@/components/ui';
+import { AppHeader, Badge, Field, ModalFocusScrollContext, PrimaryButton, Screen, SecondaryButton } from '@/components/ui';
 import { Icon } from '@/components/icon';
 import { useAuth } from '@/contexts/auth-context';
 import { useResponsive } from '@/hooks/use-responsive';
+import { useScrollFocusedIntoView, useScrollToFocusedInput } from '@/hooks/use-scroll-to-focused-input';
 import { Board, BoardMember, KanbanRepository, Task } from '@/infrastructure/kanban/kanban.repository';
 import { friendlyAuthError } from '@/screens/auth-error';
 import { theme } from '@/theme';
@@ -403,22 +404,56 @@ export default function KanbanScreen() {
 function ModalShell({ title, onClose, children, footer }: { title: string; onClose: () => void; children: React.ReactNode; footer?: React.ReactNode }) {
   const insets = useContext(SafeAreaInsetsContext);
   const bottom = insets?.bottom ?? 0;
+  const scrollRef = useRef<ScrollView>(null);
+  useScrollToFocusedInput(scrollRef);
+  const scrollFocusedIntoView = useScrollFocusedIntoView(scrollRef);
   return (
     <View style={[styles.overlay, { paddingBottom: Math.max(16, bottom + 8) }]}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.avoid}>
+      <ModalKeyboardPadding>
         <View style={styles.modal}>
           <Pressable testID="modal-close" onPress={onClose} accessibilityLabel="Cerrar" style={styles.close}>
             <Text style={styles.closeText}>×</Text>
           </Pressable>
           <Text style={styles.modalTitle}>{title}</Text>
-          <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator style={styles.modalBody} contentContainerStyle={styles.modalBodyContent}>
+          <ModalFocusScrollContext.Provider value={scrollFocusedIntoView}>
+          <ScrollView ref={scrollRef} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator style={styles.modalBody} contentContainerStyle={styles.modalBodyContent}>
             {children}
           </ScrollView>
+          </ModalFocusScrollContext.Provider>
           {footer ? <View testID="modal-footer" style={styles.modalFooter}>{footer}</View> : null}
         </View>
-      </KeyboardAvoidingView>
+      </ModalKeyboardPadding>
     </View>
   );
+}
+
+/**
+ * La ventana del Modal no se redimensiona con el teclado en Android, así que
+ * `adjustResize` no basta: se añade padding inferior con la altura del teclado
+ * para que el modal quede por encima de él y el contenido sea desplazable.
+ * En iOS se delega en KeyboardAvoidingView (`padding`).
+ */
+function ModalKeyboardPadding({ children }: { children: React.ReactNode }) {
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  useEffect(() => {
+    if (Platform.OS !== 'android') return undefined;
+    const show = Keyboard.addListener('keyboardDidShow', (event) => {
+      setKeyboardHeight(event.endCoordinates?.height ?? 0);
+    });
+    const hide = Keyboard.addListener('keyboardDidHide', () => setKeyboardHeight(0));
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
+  if (Platform.OS !== 'android') {
+    return (
+      <KeyboardAvoidingView behavior="padding" style={styles.avoid}>
+        {children}
+      </KeyboardAvoidingView>
+    );
+  }
+  return <View style={[styles.avoid, keyboardHeight > 0 && { paddingBottom: keyboardHeight }]}>{children}</View>;
 }
 
 function Toggle({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
