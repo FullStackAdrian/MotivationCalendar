@@ -7,7 +7,7 @@ import { Icon } from '@/components/icon';
 import { useAuth } from '@/contexts/auth-context';
 import { useResponsive } from '@/hooks/use-responsive';
 import { useScrollFocusedIntoView, useScrollToFocusedInput } from '@/hooks/use-scroll-to-focused-input';
-import { Board, BoardMember, KanbanRepository, Task } from '@/infrastructure/kanban/kanban.repository';
+import { Board, BoardColumn, BoardMember, KanbanRepository, Task } from '@/infrastructure/kanban/kanban.repository';
 import { friendlyAuthError } from '@/screens/auth-error';
 import { theme } from '@/theme';
 
@@ -47,6 +47,15 @@ export default function KanbanScreen() {
   const [taskRecurrence, setTaskRecurrence] = useState<'none' | 'weekly'>('none');
   const [recurrence, setRecurrence] = useState<number[]>([]);
   const [taskTags, setTaskTags] = useState('');
+  const [detailTask, setDetailTask] = useState<Task | null>(null);
+  const [menuColumn, setMenuColumn] = useState<BoardColumn | null>(null);
+  const [editingColumn, setEditingColumn] = useState<BoardColumn | null>(null);
+  const [editingBoard, setEditingBoard] = useState(false);
+  const [confirmKey, setConfirmKey] = useState<string | null>(null);
+  const [editingTask, setEditingTask] = useState(false);
+  const [editTitle, setEditTitle] = useState('');
+  const [editPriority, setEditPriority] = useState<'low' | 'medium' | 'high'>('medium');
+  const [acting, setActing] = useState(false);
   const columns = useMemo(() => [...(selected?.columns ?? [])].sort((a, b) => a.position - b.position), [selected]);
   const activeTasks = useMemo(() => (selected?.tasks ?? []).filter((task) => !task.archivedAt), [selected]);
 
@@ -178,13 +187,175 @@ export default function KanbanScreen() {
     setModal('task');
   };
 
-  const resetBoardForm = () => { setBoardName(''); setBoardDescription(''); setModal(null); };
+  /** Ejecuta una acción sobre la tarjeta con bloqueo anti-doble-pulsación. */
+  const runTaskAction = async (action: () => Promise<unknown>, closeAfter = true) => {
+    if (acting) return;
+    setActing(true);
+    try {
+      await action();
+      if (closeAfter) setDetailTask(null);
+      if (selected) await loadBoards(selected.id);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'No se pudo completar la acción');
+    } finally {
+      setActing(false);
+    }
+  };
+
+  const advanceTask = (task: Task) => {
+    if (!selected) return;
+    const currentIndex = columns.findIndex((column) => column.id === task.columnId);
+    const nextColumn = currentIndex >= 0 ? columns[currentIndex + 1] : undefined;
+    if (!nextColumn) return;
+    return runTaskAction(() => repository.moveTask(task.id, nextColumn.id));
+  };
+
+  const regressTask = (task: Task) => {
+    if (!selected) return;
+    const currentIndex = columns.findIndex((column) => column.id === task.columnId);
+    const prevColumn = currentIndex > 0 ? columns[currentIndex - 1] : undefined;
+    if (!prevColumn) return;
+    return runTaskAction(() => repository.moveTask(task.id, prevColumn.id));
+  };
+
+  const completeTask = (task: Task) => runTaskAction(() => repository.completeTask(task.id));
+
+  const startEditTask = (task: Task) => {
+    setConfirmKey(null);
+    setEditTitle(task.title);
+    setEditPriority(task.priority);
+    setEditingTask(true);
+  };
+
+  const saveTaskEdit = (task: Task) => {
+    if (!editTitle.trim()) return;
+    return runTaskAction(() => repository.updateTask(task.id, { title: editTitle.trim(), priority: editPriority }), true)
+      .then(() => setEditingTask(false));
+  };
+
+  const deleteTask = (task: Task) => {
+    if (acting) return;
+    if (confirmKey !== `task:${task.id}`) {
+      setConfirmKey(`task:${task.id}`);
+      return;
+    }
+    return runTaskAction(() => repository.deleteTask(task.id), true)
+      .then(() => setConfirmKey(null));
+  };
+
+  const deleteColumn = (column: BoardColumn) => {
+    if (!selected || acting) return;
+    if (confirmKey !== `column:${column.id}`) {
+      setConfirmKey(`column:${column.id}`);
+      return;
+    }
+    setActing(true);
+    setMenuColumn(null);
+    (async () => {
+      try {
+        await repository.deleteColumn(column.id);
+        setConfirmKey(null);
+        await loadBoards(selected.id);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'No se pudo borrar el estado');
+      } finally {
+        setActing(false);
+      }
+    })();
+  };
+
+  const startRenameColumn = (column: BoardColumn) => {
+    setMenuColumn(null);
+    setEditingColumn(column);
+    setColumnName(column.name);
+    setColumnColor(column.color || columnColors[0]);
+    setColumnDone(column.isDone);
+    setColumnPaused(column.isPaused);
+    setColumnWip(column.wipLimit != null ? String(column.wipLimit) : '');
+    setModal('column');
+  };
+
+  const moveColumn = async (column: BoardColumn, direction: -1 | 1) => {
+    if (!selected || acting) return;
+    const target = columns.findIndex((item) => item.id === column.id) + direction;
+    if (target < 0 || target >= columns.length) return;
+    setActing(true);
+    try {
+      await repository.reorderColumn(selected.id, column.id, target);
+      await loadBoards(selected.id);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'No se pudo mover el estado');
+    } finally {
+      setActing(false);
+    }
+  };
+
+  const saveColumn = async () => {
+    if (!selected || !columnName.trim()) return;
+    if (editingColumn) {
+      try {
+        await repository.updateColumn(editingColumn.id, { name: columnName.trim() });
+        resetColumnForm();
+        await loadBoards(selected.id);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'No se pudo renombrar el estado');
+      }
+      return;
+    }
+    await createColumn();
+  };
+
+  const resetBoardForm = () => { setBoardName(''); setBoardDescription(''); setEditingBoard(false); setModal(null); };
+
+  const startRenameBoard = () => {
+    if (!selected) return;
+    setConfirmKey(null);
+    setBoardName(selected.name);
+    setBoardDescription(selected.description ?? '');
+    setEditingBoard(true);
+    setModal('board');
+  };
+
+  const saveBoard = async () => {
+    if (!boardName.trim()) return;
+    if (editingBoard && selected) {
+      try {
+        await repository.updateBoard(selected.id, { name: boardName.trim() });
+        resetBoardForm();
+        await loadBoards(selected.id);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'No se pudo renombrar la pizarra');
+      }
+      return;
+    }
+    await createBoard();
+  };
+
+  const deleteBoard = async () => {
+    if (!selected || acting) return;
+    if (confirmKey !== 'board') {
+      setConfirmKey('board');
+      return;
+    }
+    setActing(true);
+    try {
+      await repository.deleteBoard(selected.id);
+      setConfirmKey(null);
+      setSelected(null);
+      await loadBoards();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'No se pudo borrar la pizarra');
+    } finally {
+      setActing(false);
+    }
+  };
   const resetColumnForm = () => {
     setColumnName('');
     setColumnColor(columnColors[0]);
     setColumnDone(false);
     setColumnPaused(false);
     setColumnWip('');
+    setEditingColumn(null);
     setModal(null);
   };
   const resetTaskForm = () => {
@@ -222,6 +393,8 @@ export default function KanbanScreen() {
           <View style={[styles.boardPicker, isMobile && styles.mobileBoardPicker]}>
             <Text style={styles.boardPickerLabel}>Pizarra</Text>
             <SecondaryButton title="Nueva pizarra" iconName="add" compact={isMobile} onPress={() => setModal('board')} />
+            <SecondaryButton testID="board-rename" title="Renombrar" iconName="pencil-outline" compact={isMobile} onPress={startRenameBoard} disabled={!selected} />
+            <SecondaryButton testID={confirmKey === 'board' ? 'board-delete-confirm' : 'board-delete'} title={confirmKey === 'board' ? 'Confirmar borrado' : 'Borrar'} iconName="trash-outline" compact={isMobile} onPress={deleteBoard} disabled={!selected || acting} />
             <ScrollView horizontal showsHorizontalScrollIndicator contentContainerStyle={styles.boardOptions}>
               {(boards ?? []).map((board) => (
                 <Pressable key={board.id} onPress={() => selectBoard(board.id)} style={[styles.boardOption, selected?.id === board.id && styles.boardOptionActive]}>
@@ -256,18 +429,35 @@ export default function KanbanScreen() {
             return (
               <View key={column.id} style={[styles.column, isMobile ? { width: columnWidth } : null]}>
                 <View style={styles.columnHead}>
-                  <View style={[styles.statusDot, { backgroundColor: column.color || theme.colors.ink }]} />
+                  {column.isDone ? (
+                    <Icon name="checkmark" size={12} color={theme.colors.done} />
+                  ) : (
+                    <View style={[styles.statusDot, { backgroundColor: column.color || theme.colors.ink }]} />
+                  )}
                   <Text style={styles.columnTitle} numberOfLines={1} ellipsizeMode="tail">{column.name}</Text>
-                  <Text style={styles.count}>{columnTasks.length}</Text>
-                  <Text style={styles.columnMenu}>•••</Text>
+                  {column.isPaused ? <Icon name="time-outline" size={12} color={theme.colors.inkMid} /> : null}
+                  <Text style={styles.count}>{column.wipLimit != null ? `${columnTasks.length}/${column.wipLimit}` : columnTasks.length}</Text>
+                  <Pressable testID={`column-menu-${column.id}`} onPress={() => setMenuColumn(column)} accessibilityLabel={`Opciones de ${column.name}`} hitSlop={8} style={styles.columnMenuBtn}>
+                    <Icon name="ellipsis-horizontal" size={16} color={theme.colors.inkMid} />
+                  </Pressable>
                 </View>
                 <View style={styles.cards}>
                   {columnTasks.length ? (
                     columnTasks.map((task) => (
                       <Pressable key={task.id} onPress={() => moveTask(task)} style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}>
                         <Text style={styles.taskTitle} numberOfLines={3} ellipsizeMode="tail">{task.title}</Text>
+                        <Pressable testID={`task-detail-${task.id}`} onPress={() => setDetailTask(task)} accessibilityLabel={`Detalle de ${task.title}`} hitSlop={8} style={styles.detailBtn}>
+                          <Icon name="ellipsis-horizontal" size={15} color={theme.colors.inkMid} />
+                        </Pressable>
                         <View style={styles.taskMeta}>
-                          <Text style={[styles.priority, task.priority === 'high' && styles.priorityHigh, task.priority === 'low' && styles.priorityLow]}>{task.priority}</Text>
+                          {task.priority === 'high' ? (
+                            <View style={styles.metaInline}>
+                              <Icon name="flag-outline" size={11} color={theme.colors.miss} />
+                              <Text style={[styles.priority, styles.priorityHigh]}> {task.priority}</Text>
+                            </View>
+                          ) : (
+                            <Text style={[styles.priority, task.priority === 'low' && styles.priorityLow]}>{task.priority}</Text>
+                          )}
 <View style={styles.metaInline}>
                             <Icon name="person-outline" size={11} color={theme.colors.inkMid} />
                             <Text style={styles.metaText}> {task.assignee ? ` ${task.assignee.username}` : ' Sin asignar'}</Text>
@@ -305,6 +495,7 @@ export default function KanbanScreen() {
                     ))
                   ) : (
                     <View style={styles.empty}>
+                      <Icon name="archive-outline" size={20} color={theme.colors.inkFaint} />
                       <Text style={styles.emptyText}>Sin tareas</Text>
                     </View>
                   )}
@@ -318,15 +509,19 @@ export default function KanbanScreen() {
       </View>
 
       <Modal visible={modal === 'board'} transparent animationType="fade" onRequestClose={resetBoardForm}>
-        <ModalShell title="Nueva pizarra" onClose={resetBoardForm} footer={<PrimaryButton testID="cta-create-board" title="Crear pizarra" iconName="add" onPress={createBoard} />}>
+        <ModalShell title={editingBoard ? 'Renombrar pizarra' : 'Nueva pizarra'} onClose={resetBoardForm} footer={<PrimaryButton testID="cta-create-board" title={editingBoard ? 'Guardar pizarra' : 'Crear pizarra'} iconName={editingBoard ? 'checkmark' : 'add'} onPress={saveBoard} />}>
           <Field label="Nombre" value={boardName} onChangeText={setBoardName} maxLength={120} />
+          {editingBoard ? null : (
           <Field label="Descripción" value={boardDescription} onChangeText={setBoardDescription} multiline numberOfLines={3} />
+          )}
         </ModalShell>
       </Modal>
 
       <Modal visible={modal === 'column'} transparent animationType="fade" onRequestClose={resetColumnForm}>
-        <ModalShell title="Nuevo estado" onClose={resetColumnForm} footer={<PrimaryButton testID="cta-create-column" title="Crear estado" iconName="add" onPress={createColumn} />}>
+        <ModalShell title={editingColumn ? 'Renombrar estado' : 'Nuevo estado'} onClose={resetColumnForm} footer={<PrimaryButton testID="cta-create-column" title={editingColumn ? 'Guardar estado' : 'Crear estado'} iconName={editingColumn ? 'checkmark' : 'add'} onPress={saveColumn} />}>
           <Field label="Nombre" value={columnName} onChangeText={setColumnName} maxLength={80} />
+          {editingColumn ? null : (
+            <>
           <Text style={styles.formLabel}>Color</Text>
           <View style={styles.colorPicker}>
             {columnColors.map((color) => (
@@ -336,6 +531,8 @@ export default function KanbanScreen() {
           <Toggle label="Estado de finalización" active={columnDone} onPress={() => setColumnDone((value) => !value)} />
           <Toggle label="Estado en pausa" active={columnPaused} onPress={() => setColumnPaused((value) => !value)} />
           <Field label="Límite WIP opcional" value={columnWip} onChangeText={setColumnWip} keyboardType="numeric" />
+            </>
+          )}
         </ModalShell>
       </Modal>
 
@@ -395,6 +592,87 @@ export default function KanbanScreen() {
           )) : (
             <Text style={styles.emptyArchive}>No hay tareas archivadas.</Text>
           )}
+        </ModalShell>
+      </Modal>
+
+      <Modal visible={detailTask != null} transparent animationType="slide" onRequestClose={() => { setDetailTask(null); setEditingTask(false); setConfirmKey(null); }}>
+        <ModalShell title="Detalle de tarea" onClose={() => { setDetailTask(null); setEditingTask(false); setConfirmKey(null); }} footer={
+          detailTask ? (
+            <View style={styles.detailActions}>
+              <SecondaryButton testID="task-detail-back" title="Anterior" iconName="arrow-back" compact onPress={() => regressTask(detailTask)} disabled={acting || columns.findIndex((column) => column.id === detailTask.columnId) <= 0} />
+              <SecondaryButton testID="task-detail-complete" title="Completar" iconName="checkmark" compact onPress={() => completeTask(detailTask)} disabled={acting} />
+              <PrimaryButton testID="task-detail-next" title="Siguiente" iconName="chevron-forward" iconSide="right" compact onPress={() => advanceTask(detailTask)} disabled={acting || columns.findIndex((column) => column.id === detailTask.columnId) < 0 || columns.findIndex((column) => column.id === detailTask.columnId) >= columns.length - 1} />
+            </View>
+          ) : undefined
+        }>
+          {detailTask ? (
+            <View style={styles.detailBody}>
+              <Text style={styles.detailTitle}>{detailTask.title}</Text>
+              <View style={styles.metaInline}>
+                {detailTask.priority === 'high' ? <Icon name="flag-outline" size={12} color={theme.colors.miss} /> : null}
+                <Text style={styles.metaText}>Prioridad: {detailTask.priority}</Text>
+              </View>
+              <View style={styles.metaInline}>
+                <Icon name="person-outline" size={12} color={theme.colors.inkMid} />
+                <Text style={styles.metaText}>{detailTask.assignee ? ` ${detailTask.assignee.username}` : ' Sin asignar'}</Text>
+              </View>
+              {detailTask.effortPoints ? (
+                <View style={styles.metaInline}>
+                  <Icon name="star-outline" size={12} color={theme.colors.inkMid} />
+                  <Text style={styles.metaText}> {detailTask.effortPoints} puntos</Text>
+                </View>
+              ) : null}
+              {detailTask.estimatedMinutes ? (
+                <View style={styles.metaInline}>
+                  <Icon name="time-outline" size={12} color={theme.colors.inkMid} />
+                  <Text style={styles.metaText}> {detailTask.estimatedMinutes} min estimados</Text>
+                </View>
+              ) : null}
+              {detailTask.recurrence?.type === 'weekly' ? (
+                <View style={styles.metaInline}>
+                  <Icon name="repeat-outline" size={12} color={theme.colors.inkMid} />
+                  <Text style={styles.metaText}> Semanal: {detailTask.recurrence.days.map((day) => dayLabels[day - 1]).join(' · ')}</Text>
+                </View>
+              ) : null}
+              {detailTask.tags?.length ? (
+                <View style={styles.tags}>
+                  {detailTask.tags.map((tag) => (
+                    <Badge key={tag} label={tag} />
+                  ))}
+                </View>
+              ) : null}
+              {editingTask ? (
+                <View style={styles.detailEdit}>
+                  <Field label="Título" value={editTitle} onChangeText={setEditTitle} maxLength={180} />
+                  <OptionPicker label="Prioridad" options={[{ value: 'low', label: 'Baja' }, { value: 'medium', label: 'Media' }, { value: 'high', label: 'Alta' }]} value={editPriority} onChange={(value) => setEditPriority(value as 'low' | 'medium' | 'high')} />
+                  <View style={styles.detailActions}>
+                    <PrimaryButton testID="task-save" title="Guardar" iconName="checkmark" compact onPress={() => detailTask && saveTaskEdit(detailTask)} disabled={acting || !editTitle.trim()} />
+                    <SecondaryButton title="Cancelar" compact onPress={() => setEditingTask(false)} disabled={acting} />
+                  </View>
+                </View>
+              ) : (
+                <View style={styles.detailActions}>
+                  <SecondaryButton testID="task-edit" title="Editar" iconName="pencil-outline" compact onPress={() => detailTask && startEditTask(detailTask)} disabled={acting} />
+                  <SecondaryButton testID={confirmKey === `task:${detailTask.id}` ? 'task-delete-confirm' : 'task-delete'} title={confirmKey === `task:${detailTask.id}` ? 'Confirmar borrado' : 'Eliminar'} iconName="trash-outline" compact onPress={() => detailTask && deleteTask(detailTask)} disabled={acting} />
+                </View>
+              )}
+              {acting ? <ActivityIndicator color={theme.colors.ink} style={styles.loader} /> : null}
+            </View>
+          ) : null}
+        </ModalShell>
+      </Modal>
+
+      <Modal visible={menuColumn != null} transparent animationType="fade" onRequestClose={() => { setMenuColumn(null); setConfirmKey(null); }}>
+        <ModalShell title={menuColumn?.name ?? ''} onClose={() => { setMenuColumn(null); setConfirmKey(null); }}>
+          {menuColumn ? (
+            <View style={styles.menuList}>
+              <SecondaryButton testID="column-rename" title="Renombrar" iconName="pencil-outline" fullWidth onPress={() => startRenameColumn(menuColumn)} disabled={acting} />
+              <SecondaryButton testID="column-left" title="Mover a la izquierda" iconName="arrow-back" fullWidth onPress={() => moveColumn(menuColumn, -1)} disabled={acting || columns.findIndex((column) => column.id === menuColumn.id) <= 0} />
+              <SecondaryButton testID="column-right" title="Mover a la derecha" iconName="arrow-forward" iconSide="right" fullWidth onPress={() => moveColumn(menuColumn, 1)} disabled={acting || columns.findIndex((column) => column.id === menuColumn.id) >= columns.length - 1} />
+              <SecondaryButton testID={confirmKey === `column:${menuColumn.id}` ? 'column-delete-confirm' : 'column-delete'} title={confirmKey === `column:${menuColumn.id}` ? 'Confirmar borrado' : 'Eliminar'} iconName="trash-outline" fullWidth onPress={() => deleteColumn(menuColumn)} disabled={acting} />
+              <SecondaryButton title="Cerrar" fullWidth onPress={() => { setMenuColumn(null); setConfirmKey(null); }} />
+            </View>
+          ) : null}
         </ModalShell>
       </Modal>
     </Screen>
@@ -511,9 +789,15 @@ toolbar: { marginBottom: theme.spacing.lg, gap: 14 },
   statusDot: { width: 10, height: 10, borderRadius: 5 },
   columnTitle: { color: theme.colors.ink, fontWeight: '600', flex: 1 },
   count: { color: theme.colors.inkMid, fontSize: 12 },
-  columnMenu: { color: theme.colors.inkMid, fontSize: 12, marginLeft: 2 },
+  columnMenuBtn: { padding: 6, borderRadius: 6 },
+  detailBtn: { position: 'absolute', right: 6, bottom: 6, padding: 6, borderRadius: 6 },
+  detailActions: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
+  detailBody: { gap: 10 },
+  detailTitle: { color: theme.colors.ink, fontSize: 18, fontWeight: '600' },
+  detailEdit: { gap: 10 },
+  menuList: { gap: 8 },
   cards: { minHeight: 80, gap: 10 },
-  empty: { paddingVertical: 24, alignItems: 'center' },
+  empty: { paddingVertical: 24, alignItems: 'center', gap: 6 },
   emptyText: { color: theme.colors.inkMid, fontSize: 13 },
   card: {
     position: 'relative',

@@ -2,7 +2,7 @@ import { randomUUID } from 'crypto';
 import type { Board, Column, Recurrence, Task, TaskOccurrence } from './types';
 
 const DAY_COUNT = 7;
-const VALID_PRIORITIES = new Set(['low', 'medium', 'high']);
+export const VALID_PRIORITIES = new Set(['low', 'medium', 'high']);
 
 type EntityId = `${string}_${string}`;
 

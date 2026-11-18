@@ -8,9 +8,13 @@ import {
   createColumn,
   createTask,
   getNextOccurrenceDate,
+  MAX_BOARD_NAME,
   MAX_COLUMN_NAME,
+  MAX_TASK_TITLE,
   moveColumn,
+  normalizeDescription,
   normalizeName,
+  VALID_PRIORITIES,
   validateRecurrence
 } from '../kanban';
 import type { BoardRepository } from '../repositories/board.repository';
@@ -20,6 +24,7 @@ import type { UserRepository } from '../repositories/user.repository';
 import type {
   Board,
   BoardMemberRow,
+  BoardPatch,
   BoardWithDetails,
   Column,
   ColumnPatch,
@@ -126,6 +131,47 @@ export class KanbanService {
     // BETA-2: el nombre no puede colarse sin validar (límite 80 de la BD).
     if (patch.name !== undefined) patch.name = normalizeName(patch.name, MAX_COLUMN_NAME);
     return this.columnRepository.update(columnId, patch);
+  }
+
+  async updateBoard(boardId: string, userId: string, data: Record<string, unknown>): Promise<Board | null> {
+    if (!(await this.boardRepository.hasAccess(boardId, userId))) throw new Error('No autorizado');
+    const patch: BoardPatch = {};
+    if (data.name !== undefined) patch.name = normalizeName(data.name, MAX_BOARD_NAME);
+    if (data.description !== undefined) patch.description = normalizeDescription(data.description);
+    return this.boardRepository.update(boardId, patch);
+  }
+
+  async deleteBoard(boardId: string, userId: string): Promise<void> {
+    if (!(await this.boardRepository.isOwner(boardId, userId))) throw new Error('Solo el dueño puede borrar la pizarra');
+    await this.boardRepository.delete(boardId);
+  }
+
+  async deleteColumn(columnId: string, userId: string): Promise<void> {
+    const column = await this.columnRepository.findById(columnId);
+    if (!column || !(await this.boardRepository.hasAccess(column.boardId, userId))) throw new Error('No autorizado');
+    const active = await this.taskRepository.countActiveInColumn(column.boardId, columnId);
+    if (active > 0) throw new Error('El estado tiene tareas: muévelas o bórralas primero');
+    await this.columnRepository.delete(columnId);
+    const remaining = await this.columnRepository.listByBoardOrdered(column.boardId);
+    await this.columnRepository.updatePositions(remaining.map((item, position) => ({ id: item.id, position })));
+  }
+
+  async updateTask(taskId: string, userId: string, data: Record<string, unknown>): Promise<Task | null> {
+    const task = await this.taskRepository.findById(taskId);
+    if (!task || !(await this.boardRepository.hasAccess(task.boardId, userId))) throw new Error('No autorizado');
+    const patch: TaskPatch = {};
+    if (data.title !== undefined) patch.title = normalizeName(data.title, MAX_TASK_TITLE);
+    if (data.priority !== undefined) {
+      if (typeof data.priority !== 'string' || !VALID_PRIORITIES.has(data.priority)) throw new Error('Prioridad inválida');
+      patch.priority = data.priority as Task['priority'];
+    }
+    return this.taskRepository.update(taskId, patch);
+  }
+
+  async deleteTask(taskId: string, userId: string): Promise<void> {
+    const task = await this.taskRepository.findById(taskId);
+    if (!task || !(await this.boardRepository.hasAccess(task.boardId, userId))) throw new Error('No autorizado');
+    await this.taskRepository.delete(taskId);
   }
 
   async createTask(boardId: string, userId: string, data: CreateTaskInput): Promise<Task> {

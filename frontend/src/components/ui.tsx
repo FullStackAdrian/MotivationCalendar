@@ -42,7 +42,7 @@ export function PrimaryButton({ title, onPress, disabled = false, compact = fals
       ) : null}
     </>
   );
-  return <Pressable testID={testID} disabled={disabled} onPress={onPress} hitSlop={8} style={[styles.button, compact && styles.buttonCompact, fullWidth && styles.fullWidth, disabled && styles.disabled]}>{content}</Pressable>;
+  return <Pressable testID={testID} disabled={disabled} accessibilityState={{ disabled }} onPress={onPress} hitSlop={8} style={[styles.button, compact && styles.buttonCompact, fullWidth && styles.fullWidth, disabled && styles.disabled]}>{content}</Pressable>;
 }
 
 export function SecondaryButton({ title, onPress, disabled = false, compact = false, fullWidth = false, iconName, iconSide = 'left', testID }: BaseButtonProps) {
@@ -57,7 +57,7 @@ export function SecondaryButton({ title, onPress, disabled = false, compact = fa
       ) : null}
     </>
   );
-  return <Pressable testID={testID} disabled={disabled} onPress={onPress} hitSlop={8} style={[styles.secondary, compact && styles.secondaryCompact, fullWidth && styles.fullWidth, disabled && styles.disabled]}>{content}</Pressable>;
+  return <Pressable testID={testID} disabled={disabled} accessibilityState={{ disabled }} onPress={onPress} hitSlop={8} style={[styles.secondary, compact && styles.secondaryCompact, fullWidth && styles.fullWidth, disabled && styles.disabled]}>{content}</Pressable>;
 }
 
 export const Field = React.forwardRef<TextInput, TextInputProps & { label: string }>(function Field({ label, onFocus, ...props }, ref) {

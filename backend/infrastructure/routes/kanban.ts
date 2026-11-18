@@ -31,12 +31,15 @@ const idParam = (req: Request, name: 'boardId' | 'columnId' | 'taskId'): string 
 router.get('/boards', asyncRoute(async (req, res) => res.json(await service.listBoards(userId(req)))));
 router.post('/boards', asyncRoute(async (req, res) => res.status(201).json(await service.createBoard(userId(req), req.body))));
 router.get('/boards/:boardId', asyncRoute(async (req, res) => res.json(await service.getBoard(idParam(req, 'boardId'), userId(req), (req.query.today as string) || undefined))));
+router.patch('/boards/:boardId', asyncRoute(async (req, res) => res.json(await service.updateBoard(idParam(req, 'boardId'), userId(req), req.body))));
+router.delete('/boards/:boardId', asyncRoute(async (req, res) => { await service.deleteBoard(idParam(req, 'boardId'), userId(req)); return res.status(204).end(); }));
 router.get('/boards/:boardId/members', asyncRoute(async (req, res) => res.json(await service.listMembers(idParam(req, 'boardId'), userId(req)))));
 router.post('/boards/:boardId/members', asyncRoute(async (req, res) => res.status(201).json(await service.addMember(idParam(req, 'boardId'), userId(req), req.body.userId))));
 router.get('/boards/:boardId/archive', asyncRoute(async (req, res) => res.json(await service.listArchive(idParam(req, 'boardId'), userId(req), req.query as { assigneeId?: string }))));
 
 router.post('/boards/:boardId/columns', asyncRoute(async (req, res) => res.status(201).json(await service.createColumn(idParam(req, 'boardId'), userId(req), req.body))));
 router.patch('/columns/:columnId', asyncRoute(async (req, res) => res.json(await service.updateColumn(idParam(req, 'columnId'), userId(req), req.body))));
+router.delete('/columns/:columnId', asyncRoute(async (req, res) => { await service.deleteColumn(idParam(req, 'columnId'), userId(req)); return res.status(204).end(); }));
 
 router.patch('/boards/:boardId/columns/:columnId/position', asyncRoute(async (req, res) =>
   res.json(await service.reorderColumn(idParam(req, 'boardId'), userId(req), idParam(req, 'columnId'), Number(req.body.position)))));
@@ -58,13 +61,18 @@ router.patch('/tasks/:taskId/move', asyncRoute(async (req, res) => {
 router.post('/tasks/:taskId/complete', asyncRoute(async (req, res) =>
   res.json(await service.completeTask(idParam(req, 'taskId'), userId(req), req.body.date))));
 
+router.patch('/tasks/:taskId', asyncRoute(async (req, res) =>
+  res.json(await service.updateTask(idParam(req, 'taskId'), userId(req), req.body))));
+
+router.delete('/tasks/:taskId', asyncRoute(async (req, res) => { await service.deleteTask(idParam(req, 'taskId'), userId(req)); return res.status(204).end(); }));
+
 // BETA-1: mapeo de errores de negocio a HTTP (función pura y testeable).
 // Devuelve null cuando el error no es de negocio y debe seguir al handler global.
 export function mapKanbanErrorResponse(error: Error & { message: string }): { status: number; body: { error: string } } | null {
   if (error.message === 'No autorizado') return { status: 403, body: { error: error.message } };
   // Recurso inexistente pero con acceso previo (p. ej. tablero borrado) → 404, no 500.
   if (error.message === 'Estado no encontrado') return { status: 404, body: { error: 'Tablero no encontrado' } };
-  if (/no encontrado|obligatorio|inválid|límite|día de frecuencia|Tipo de frecuencia|Ocurrencia|asignado/i.test(error.message)) {
+  if (/no encontrado|obligatorio|inválid|límite|tiene tareas|día de frecuencia|Tipo de frecuencia|Ocurrencia|asignado|dueño/i.test(error.message)) {
     return { status: 400, body: { error: error.message } };
   }
   return null;

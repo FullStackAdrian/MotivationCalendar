@@ -17,4 +17,6 @@ export interface ColumnRepository {
   update(columnId: string, patch: ColumnPatch): Promise<Column | null>;
   /** Aplica posiciones en transacción. */
   updatePositions(positions: Array<{ id: string; position: number }>): Promise<void>;
+  /** Borra el estado (solo sin tareas activas; lo valida el servicio). */
+  delete(columnId: string): Promise<void>;
 }

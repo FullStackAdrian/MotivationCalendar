@@ -1,4 +1,4 @@
-import type { Board, BoardMemberRow, BoardWithDetails, MemberUser } from '../types';
+import type { Board, BoardMemberRow, BoardPatch, BoardWithDetails, MemberUser } from '../types';
 
 /** Especificación de columnas iniciales (política de negocio del servicio). */
 export interface DefaultColumnSpec {
@@ -27,6 +27,10 @@ export interface BoardRepository {
   hasAccess(boardId: string, userId: string): Promise<boolean>;
   /** ¿Existe fila de membresía para userId (incluye al dueño)? */
   isMemberRow(boardId: string, userId: string): Promise<boolean>;
+  /** Actualiza nombre/descripción y devuelve la fila resultante. */
+  update(boardId: string, patch: BoardPatch): Promise<Board | null>;
+  /** Borra la pizarra (las tareas, estados y membresías caen en cascada). */
+  delete(boardId: string): Promise<void>;
   /** Añade como miembro si no existe. */
   addMemberIfAbsent(boardId: string, userId: string, role: string): Promise<{ created: boolean; member: BoardMemberRow | null }>;
   /** Usuarios miembros de la pizarra. */
