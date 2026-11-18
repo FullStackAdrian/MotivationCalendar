@@ -13,5 +13,8 @@ export class KanbanRepository {
   createColumn(boardId: string, data: Partial<BoardColumn>) { return apiClient.post<BoardColumn>(`/api/kanban/boards/${boardId}/columns`, data); }
   createTask(boardId: string, data: Record<string, unknown>) { return apiClient.post<Task>(`/api/kanban/boards/${boardId}/tasks`, data); }
   moveTask(taskId: string, columnId: string, date?: string) { return apiClient.patch<Task>(`/api/kanban/tasks/${taskId}/move`, { columnId, ...(date ? { date } : {}) }); }
+  completeTask(taskId: string) { return apiClient.post<Task>(`/api/kanban/tasks/${taskId}/complete`, {}); }
+  updateColumn(columnId: string, data: Partial<BoardColumn>) { return apiClient.patch<BoardColumn>(`/api/kanban/columns/${columnId}`, data); }
+  reorderColumn(boardId: string, columnId: string, position: number) { return apiClient.patch<BoardColumn[]>(`/api/kanban/boards/${boardId}/columns/${columnId}/position`, { position }); }
   archive(boardId: string) { return apiClient.get<Task[]>(`/api/kanban/boards/${boardId}/archive`); }
 }

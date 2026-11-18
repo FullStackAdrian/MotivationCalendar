@@ -7,7 +7,7 @@ import { Icon } from '@/components/icon';
 import { useAuth } from '@/contexts/auth-context';
 import { useResponsive } from '@/hooks/use-responsive';
 import { useScrollFocusedIntoView, useScrollToFocusedInput } from '@/hooks/use-scroll-to-focused-input';
-import { Board, BoardMember, KanbanRepository, Task } from '@/infrastructure/kanban/kanban.repository';
+import { Board, BoardColumn, BoardMember, KanbanRepository, Task } from '@/infrastructure/kanban/kanban.repository';
 import { friendlyAuthError } from '@/screens/auth-error';
 import { theme } from '@/theme';
 
@@ -47,6 +47,10 @@ export default function KanbanScreen() {
   const [taskRecurrence, setTaskRecurrence] = useState<'none' | 'weekly'>('none');
   const [recurrence, setRecurrence] = useState<number[]>([]);
   const [taskTags, setTaskTags] = useState('');
+  const [detailTask, setDetailTask] = useState<Task | null>(null);
+  const [menuColumn, setMenuColumn] = useState<BoardColumn | null>(null);
+  const [editingColumn, setEditingColumn] = useState<BoardColumn | null>(null);
+  const [acting, setActing] = useState(false);
   const columns = useMemo(() => [...(selected?.columns ?? [])].sort((a, b) => a.position - b.position), [selected]);
   const activeTasks = useMemo(() => (selected?.tasks ?? []).filter((task) => !task.archivedAt), [selected]);
 
@@ -178,6 +182,80 @@ export default function KanbanScreen() {
     setModal('task');
   };
 
+  /** Ejecuta una acción sobre la tarjeta con bloqueo anti-doble-pulsación. */
+  const runTaskAction = async (action: () => Promise<unknown>, closeAfter = true) => {
+    if (acting) return;
+    setActing(true);
+    try {
+      await action();
+      if (closeAfter) setDetailTask(null);
+      if (selected) await loadBoards(selected.id);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'No se pudo completar la acción');
+    } finally {
+      setActing(false);
+    }
+  };
+
+  const advanceTask = (task: Task) => {
+    if (!selected) return;
+    const currentIndex = columns.findIndex((column) => column.id === task.columnId);
+    const nextColumn = currentIndex >= 0 ? columns[currentIndex + 1] : undefined;
+    if (!nextColumn) return;
+    return runTaskAction(() => repository.moveTask(task.id, nextColumn.id));
+  };
+
+  const regressTask = (task: Task) => {
+    if (!selected) return;
+    const currentIndex = columns.findIndex((column) => column.id === task.columnId);
+    const prevColumn = currentIndex > 0 ? columns[currentIndex - 1] : undefined;
+    if (!prevColumn) return;
+    return runTaskAction(() => repository.moveTask(task.id, prevColumn.id));
+  };
+
+  const completeTask = (task: Task) => runTaskAction(() => repository.completeTask(task.id));
+
+  const startRenameColumn = (column: BoardColumn) => {
+    setMenuColumn(null);
+    setEditingColumn(column);
+    setColumnName(column.name);
+    setColumnColor(column.color || columnColors[0]);
+    setColumnDone(column.isDone);
+    setColumnPaused(column.isPaused);
+    setColumnWip(column.wipLimit != null ? String(column.wipLimit) : '');
+    setModal('column');
+  };
+
+  const moveColumn = async (column: BoardColumn, direction: -1 | 1) => {
+    if (!selected || acting) return;
+    const target = columns.findIndex((item) => item.id === column.id) + direction;
+    if (target < 0 || target >= columns.length) return;
+    setActing(true);
+    try {
+      await repository.reorderColumn(selected.id, column.id, target);
+      await loadBoards(selected.id);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'No se pudo mover el estado');
+    } finally {
+      setActing(false);
+    }
+  };
+
+  const saveColumn = async () => {
+    if (!selected || !columnName.trim()) return;
+    if (editingColumn) {
+      try {
+        await repository.updateColumn(editingColumn.id, { name: columnName.trim() });
+        resetColumnForm();
+        await loadBoards(selected.id);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'No se pudo renombrar el estado');
+      }
+      return;
+    }
+    await createColumn();
+  };
+
   const resetBoardForm = () => { setBoardName(''); setBoardDescription(''); setModal(null); };
   const resetColumnForm = () => {
     setColumnName('');
@@ -185,6 +263,7 @@ export default function KanbanScreen() {
     setColumnDone(false);
     setColumnPaused(false);
     setColumnWip('');
+    setEditingColumn(null);
     setModal(null);
   };
   const resetTaskForm = () => {
@@ -256,18 +335,35 @@ export default function KanbanScreen() {
             return (
               <View key={column.id} style={[styles.column, isMobile ? { width: columnWidth } : null]}>
                 <View style={styles.columnHead}>
-                  <View style={[styles.statusDot, { backgroundColor: column.color || theme.colors.ink }]} />
+                  {column.isDone ? (
+                    <Icon name="checkmark" size={12} color={theme.colors.done} />
+                  ) : (
+                    <View style={[styles.statusDot, { backgroundColor: column.color || theme.colors.ink }]} />
+                  )}
                   <Text style={styles.columnTitle} numberOfLines={1} ellipsizeMode="tail">{column.name}</Text>
-                  <Text style={styles.count}>{columnTasks.length}</Text>
-                  <Text style={styles.columnMenu}>•••</Text>
+                  {column.isPaused ? <Icon name="time-outline" size={12} color={theme.colors.inkMid} /> : null}
+                  <Text style={styles.count}>{column.wipLimit != null ? `${columnTasks.length}/${column.wipLimit}` : columnTasks.length}</Text>
+                  <Pressable testID={`column-menu-${column.id}`} onPress={() => setMenuColumn(column)} accessibilityLabel={`Opciones de ${column.name}`} hitSlop={8} style={styles.columnMenuBtn}>
+                    <Icon name="ellipsis-horizontal" size={16} color={theme.colors.inkMid} />
+                  </Pressable>
                 </View>
                 <View style={styles.cards}>
                   {columnTasks.length ? (
                     columnTasks.map((task) => (
                       <Pressable key={task.id} onPress={() => moveTask(task)} style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}>
                         <Text style={styles.taskTitle} numberOfLines={3} ellipsizeMode="tail">{task.title}</Text>
+                        <Pressable testID={`task-detail-${task.id}`} onPress={() => setDetailTask(task)} accessibilityLabel={`Detalle de ${task.title}`} hitSlop={8} style={styles.detailBtn}>
+                          <Icon name="ellipsis-horizontal" size={15} color={theme.colors.inkMid} />
+                        </Pressable>
                         <View style={styles.taskMeta}>
-                          <Text style={[styles.priority, task.priority === 'high' && styles.priorityHigh, task.priority === 'low' && styles.priorityLow]}>{task.priority}</Text>
+                          {task.priority === 'high' ? (
+                            <View style={styles.metaInline}>
+                              <Icon name="flag-outline" size={11} color={theme.colors.miss} />
+                              <Text style={[styles.priority, styles.priorityHigh]}> {task.priority}</Text>
+                            </View>
+                          ) : (
+                            <Text style={[styles.priority, task.priority === 'low' && styles.priorityLow]}>{task.priority}</Text>
+                          )}
 <View style={styles.metaInline}>
                             <Icon name="person-outline" size={11} color={theme.colors.inkMid} />
                             <Text style={styles.metaText}> {task.assignee ? ` ${task.assignee.username}` : ' Sin asignar'}</Text>
@@ -305,6 +401,7 @@ export default function KanbanScreen() {
                     ))
                   ) : (
                     <View style={styles.empty}>
+                      <Icon name="archive-outline" size={20} color={theme.colors.inkFaint} />
                       <Text style={styles.emptyText}>Sin tareas</Text>
                     </View>
                   )}
@@ -325,8 +422,10 @@ export default function KanbanScreen() {
       </Modal>
 
       <Modal visible={modal === 'column'} transparent animationType="fade" onRequestClose={resetColumnForm}>
-        <ModalShell title="Nuevo estado" onClose={resetColumnForm} footer={<PrimaryButton testID="cta-create-column" title="Crear estado" iconName="add" onPress={createColumn} />}>
+        <ModalShell title={editingColumn ? 'Renombrar estado' : 'Nuevo estado'} onClose={resetColumnForm} footer={<PrimaryButton testID="cta-create-column" title={editingColumn ? 'Guardar estado' : 'Crear estado'} iconName={editingColumn ? 'checkmark' : 'add'} onPress={saveColumn} />}>
           <Field label="Nombre" value={columnName} onChangeText={setColumnName} maxLength={80} />
+          {editingColumn ? null : (
+            <>
           <Text style={styles.formLabel}>Color</Text>
           <View style={styles.colorPicker}>
             {columnColors.map((color) => (
@@ -336,6 +435,8 @@ export default function KanbanScreen() {
           <Toggle label="Estado de finalización" active={columnDone} onPress={() => setColumnDone((value) => !value)} />
           <Toggle label="Estado en pausa" active={columnPaused} onPress={() => setColumnPaused((value) => !value)} />
           <Field label="Límite WIP opcional" value={columnWip} onChangeText={setColumnWip} keyboardType="numeric" />
+            </>
+          )}
         </ModalShell>
       </Modal>
 
@@ -395,6 +496,71 @@ export default function KanbanScreen() {
           )) : (
             <Text style={styles.emptyArchive}>No hay tareas archivadas.</Text>
           )}
+        </ModalShell>
+      </Modal>
+
+      <Modal visible={detailTask != null} transparent animationType="slide" onRequestClose={() => setDetailTask(null)}>
+        <ModalShell title="Detalle de tarea" onClose={() => setDetailTask(null)} footer={
+          detailTask ? (
+            <View style={styles.detailActions}>
+              <SecondaryButton testID="task-detail-back" title="Anterior" iconName="arrow-back" compact onPress={() => regressTask(detailTask)} disabled={acting || columns.findIndex((column) => column.id === detailTask.columnId) <= 0} />
+              <SecondaryButton testID="task-detail-complete" title="Completar" iconName="checkmark" compact onPress={() => completeTask(detailTask)} disabled={acting} />
+              <PrimaryButton testID="task-detail-next" title="Siguiente" iconName="chevron-forward" iconSide="right" compact onPress={() => advanceTask(detailTask)} disabled={acting || columns.findIndex((column) => column.id === detailTask.columnId) < 0 || columns.findIndex((column) => column.id === detailTask.columnId) >= columns.length - 1} />
+            </View>
+          ) : undefined
+        }>
+          {detailTask ? (
+            <View style={styles.detailBody}>
+              <Text style={styles.detailTitle}>{detailTask.title}</Text>
+              <View style={styles.metaInline}>
+                {detailTask.priority === 'high' ? <Icon name="flag-outline" size={12} color={theme.colors.miss} /> : null}
+                <Text style={styles.metaText}>Prioridad: {detailTask.priority}</Text>
+              </View>
+              <View style={styles.metaInline}>
+                <Icon name="person-outline" size={12} color={theme.colors.inkMid} />
+                <Text style={styles.metaText}>{detailTask.assignee ? ` ${detailTask.assignee.username}` : ' Sin asignar'}</Text>
+              </View>
+              {detailTask.effortPoints ? (
+                <View style={styles.metaInline}>
+                  <Icon name="star-outline" size={12} color={theme.colors.inkMid} />
+                  <Text style={styles.metaText}> {detailTask.effortPoints} puntos</Text>
+                </View>
+              ) : null}
+              {detailTask.estimatedMinutes ? (
+                <View style={styles.metaInline}>
+                  <Icon name="time-outline" size={12} color={theme.colors.inkMid} />
+                  <Text style={styles.metaText}> {detailTask.estimatedMinutes} min estimados</Text>
+                </View>
+              ) : null}
+              {detailTask.recurrence?.type === 'weekly' ? (
+                <View style={styles.metaInline}>
+                  <Icon name="repeat-outline" size={12} color={theme.colors.inkMid} />
+                  <Text style={styles.metaText}> Semanal: {detailTask.recurrence.days.map((day) => dayLabels[day - 1]).join(' · ')}</Text>
+                </View>
+              ) : null}
+              {detailTask.tags?.length ? (
+                <View style={styles.tags}>
+                  {detailTask.tags.map((tag) => (
+                    <Badge key={tag} label={tag} />
+                  ))}
+                </View>
+              ) : null}
+              {acting ? <ActivityIndicator color={theme.colors.ink} style={styles.loader} /> : null}
+            </View>
+          ) : null}
+        </ModalShell>
+      </Modal>
+
+      <Modal visible={menuColumn != null} transparent animationType="fade" onRequestClose={() => setMenuColumn(null)}>
+        <ModalShell title={menuColumn?.name ?? ''} onClose={() => setMenuColumn(null)}>
+          {menuColumn ? (
+            <View style={styles.menuList}>
+              <SecondaryButton testID="column-rename" title="Renombrar" iconName="pencil-outline" fullWidth onPress={() => startRenameColumn(menuColumn)} disabled={acting} />
+              <SecondaryButton testID="column-left" title="Mover a la izquierda" iconName="arrow-back" fullWidth onPress={() => moveColumn(menuColumn, -1)} disabled={acting || columns.findIndex((column) => column.id === menuColumn.id) <= 0} />
+              <SecondaryButton testID="column-right" title="Mover a la derecha" iconName="arrow-forward" iconSide="right" fullWidth onPress={() => moveColumn(menuColumn, 1)} disabled={acting || columns.findIndex((column) => column.id === menuColumn.id) >= columns.length - 1} />
+              <SecondaryButton title="Cerrar" fullWidth onPress={() => setMenuColumn(null)} />
+            </View>
+          ) : null}
         </ModalShell>
       </Modal>
     </Screen>
@@ -511,9 +677,14 @@ toolbar: { marginBottom: theme.spacing.lg, gap: 14 },
   statusDot: { width: 10, height: 10, borderRadius: 5 },
   columnTitle: { color: theme.colors.ink, fontWeight: '600', flex: 1 },
   count: { color: theme.colors.inkMid, fontSize: 12 },
-  columnMenu: { color: theme.colors.inkMid, fontSize: 12, marginLeft: 2 },
+  columnMenuBtn: { padding: 6, borderRadius: 6 },
+  detailBtn: { position: 'absolute', right: 6, bottom: 6, padding: 6, borderRadius: 6 },
+  detailActions: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
+  detailBody: { gap: 10 },
+  detailTitle: { color: theme.colors.ink, fontSize: 18, fontWeight: '600' },
+  menuList: { gap: 8 },
   cards: { minHeight: 80, gap: 10 },
-  empty: { paddingVertical: 24, alignItems: 'center' },
+  empty: { paddingVertical: 24, alignItems: 'center', gap: 6 },
   emptyText: { color: theme.colors.inkMid, fontSize: 13 },
   card: {
     position: 'relative',
