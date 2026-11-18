@@ -49,4 +49,8 @@ export class SequelizeColumnRepository implements ColumnRepository {
       }
     });
   }
+
+  async delete(columnId: string): Promise<void> {
+    await ColumnModel.destroy({ where: { id: columnId } });
+  }
 }

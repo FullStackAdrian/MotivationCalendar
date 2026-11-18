@@ -40,6 +40,10 @@ export class SequelizeTaskRepository implements TaskRepository {
     return task.toJSON() as unknown as Task;
   }
 
+  async delete(taskId: string): Promise<void> {
+    await TaskModel.destroy({ where: { id: taskId } });
+  }
+
   // --- Ocurrencias ---
 
   async findOccurrenceByTaskAndDate(taskId: string, date: string): Promise<TaskOccurrence | null> {

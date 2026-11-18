@@ -14,6 +14,8 @@ export interface TaskRepository {
   create(data: Omit<Task, 'id'>): Promise<Task>;
   /** Actualiza campos y devuelve la fila resultante. */
   update(taskId: string, patch: TaskPatch): Promise<Task | null>;
+  /** Borra la tarea (sus ocurrencias caen en cascada). */
+  delete(taskId: string): Promise<void>;
 
   // --- Ocurrencias ---
 

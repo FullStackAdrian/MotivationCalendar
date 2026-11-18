@@ -123,9 +123,13 @@ export type ColumnPatch = Partial<Pick<Column, 'name' | 'color' | 'isDone' | 'is
 
 export interface TaskPatch {
   columnId?: string;
+  title?: string;
+  priority?: Priority;
   completedAt?: Date | string | null;
   archivedAt?: string | null;
 }
+
+export type BoardPatch = Partial<Pick<Board, 'name' | 'description'>>;
 
 export interface OccurrencePatch {
   columnId: string;

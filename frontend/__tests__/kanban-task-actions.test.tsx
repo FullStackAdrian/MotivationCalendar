@@ -27,8 +27,8 @@ jest.mock('axios', () => {
 });
 
 const mockUseAuth = jest.mocked(useAuth);
-const http = (): { get: jest.Mock; post: jest.Mock; patch: jest.Mock } =>
-  (axios as unknown as { __instance: { get: jest.Mock; post: jest.Mock; patch: jest.Mock } }).__instance;
+const http = (): { get: jest.Mock; post: jest.Mock; patch: jest.Mock; delete: jest.Mock } =>
+  (axios as unknown as { __instance: { get: jest.Mock; post: jest.Mock; patch: jest.Mock; delete: jest.Mock } }).__instance;
 
 function authState(overrides: Partial<ReturnType<typeof useAuth>> = {}): ReturnType<typeof useAuth> {
   return {
@@ -133,6 +133,83 @@ describeNative('KanbanScreen task detail', () => {
     fireEvent.press(getByText('Siguiente'));
     await waitFor(() => expect(getByTestId('task-detail-next').props.accessibilityState?.disabled).toBe(true));
     resolveMove({ data: {} });
+  });
+});
+
+describeNative('KanbanScreen board menu', () => {
+  it('renames the selected board', async () => {
+    mockBoard();
+    http().patch.mockResolvedValue({ data: {} });
+    const { getByTestId, getAllByDisplayValue, findByText, getByText } = render(<KanbanScreen />);
+    await findByText('Primera tarea');
+    fireEvent.press(getByTestId('board-rename'));
+    expect(await findByText('Renombrar pizarra')).toBeTruthy();
+    fireEvent.changeText(getAllByDisplayValue('Sprint')[0], 'Sprint 2');
+    fireEvent.press(getByText('Guardar pizarra'));
+    await waitFor(() =>
+      expect(http().patch).toHaveBeenCalledWith('/api/kanban/boards/b1', { name: 'Sprint 2' }, undefined)
+    );
+  });
+
+  it('deletes the board after a two-step confirm', async () => {
+    mockBoard();
+    http().delete.mockResolvedValue({ data: {} });
+    const { getByTestId, findByText, getByText } = render(<KanbanScreen />);
+    await findByText('Primera tarea');
+    fireEvent.press(getByTestId('board-delete'));
+    fireEvent.press(getByTestId('board-delete-confirm'));
+    await waitFor(() =>
+      expect(http().delete).toHaveBeenCalledWith('/api/kanban/boards/b1', undefined)
+    );
+  });
+});
+
+describeNative('KanbanScreen task edit', () => {
+  it('edits title and priority from the detail modal', async () => {
+    mockBoard();
+    http().patch.mockResolvedValue({ data: {} });
+    const { getByTestId, getAllByDisplayValue, findByText, getByText } = render(<KanbanScreen />);
+    await findByText('Primera tarea');
+    fireEvent.press(getByTestId('task-detail-t1'));
+    await findByText('Detalle de tarea');
+    fireEvent.press(getByTestId('task-edit'));
+    fireEvent.changeText(getAllByDisplayValue('Primera tarea')[0], 'Nueva tarea');
+    fireEvent.press(getByTestId('task-save'));
+    await waitFor(() =>
+      expect(http().patch).toHaveBeenCalledWith(
+        '/api/kanban/tasks/t1',
+        expect.objectContaining({ title: 'Nueva tarea' }),
+        undefined
+      )
+    );
+  });
+
+  it('deletes the task after a two-step confirm', async () => {
+    mockBoard();
+    http().delete.mockResolvedValue({ data: {} });
+    const { getByTestId, findByText } = render(<KanbanScreen />);
+    await findByText('Primera tarea');
+    fireEvent.press(getByTestId('task-detail-t1'));
+    await findByText('Detalle de tarea');
+    fireEvent.press(getByTestId('task-delete'));
+    fireEvent.press(getByTestId('task-delete-confirm'));
+    await waitFor(() =>
+      expect(http().delete).toHaveBeenCalledWith('/api/kanban/tasks/t1', undefined)
+    );
+  });
+
+  it('deletes a column after a two-step confirm', async () => {
+    mockBoard();
+    http().patch.mockResolvedValue({ data: [] });
+    http().delete.mockResolvedValue(undefined);
+    const { getByTestId, findByText } = render(<KanbanScreen />);
+    await findByText('Primera tarea');
+    fireEvent.press(getByTestId('column-menu-c2'));
+    fireEvent.press(getByTestId('column-delete'));
+    fireEvent.press(getByTestId('column-delete-confirm'));
+    await waitFor(() =>
+      expect(http().delete).toHaveBeenCalledWith('/api/kanban/columns/c2', undefined)
+    );
   });
 });
 

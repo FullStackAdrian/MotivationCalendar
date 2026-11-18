@@ -14,7 +14,12 @@ export class KanbanRepository {
   createTask(boardId: string, data: Record<string, unknown>) { return apiClient.post<Task>(`/api/kanban/boards/${boardId}/tasks`, data); }
   moveTask(taskId: string, columnId: string, date?: string) { return apiClient.patch<Task>(`/api/kanban/tasks/${taskId}/move`, { columnId, ...(date ? { date } : {}) }); }
   completeTask(taskId: string) { return apiClient.post<Task>(`/api/kanban/tasks/${taskId}/complete`, {}); }
+  updateTask(taskId: string, data: { title?: string; priority?: Task['priority'] }) { return apiClient.patch<Task>(`/api/kanban/tasks/${taskId}`, data); }
+  deleteTask(taskId: string) { return apiClient.delete<void>(`/api/kanban/tasks/${taskId}`); }
+  updateBoard(boardId: string, data: { name?: string; description?: string }) { return apiClient.patch<Board>(`/api/kanban/boards/${boardId}`, data); }
+  deleteBoard(boardId: string) { return apiClient.delete<void>(`/api/kanban/boards/${boardId}`); }
   updateColumn(columnId: string, data: Partial<BoardColumn>) { return apiClient.patch<BoardColumn>(`/api/kanban/columns/${columnId}`, data); }
+  deleteColumn(columnId: string) { return apiClient.delete<void>(`/api/kanban/columns/${columnId}`); }
   reorderColumn(boardId: string, columnId: string, position: number) { return apiClient.patch<BoardColumn[]>(`/api/kanban/boards/${boardId}/columns/${columnId}/position`, { position }); }
   archive(boardId: string) { return apiClient.get<Task[]>(`/api/kanban/boards/${boardId}/archive`); }
 }

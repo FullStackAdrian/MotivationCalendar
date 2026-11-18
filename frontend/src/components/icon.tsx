@@ -17,7 +17,8 @@ export type IconName =
   | 'arrow-back'
   | 'arrow-forward'
   | 'pencil-outline'
-  | 'flag-outline';
+  | 'flag-outline'
+  | 'trash-outline';
 
 const PATHS: Record<IconName, string> = {
   'albums-outline': 'M12 4l8 4v8l-8 4-8-4V8l8-4zm0 6l-5.5 2.75L12 15.5l5.5-2.75L12 10zm-6.5 5.05V15l5.5 2.75v2.05L5.5 17.05zM12 17.5l5.5-2.75v2.05L12 19.55v-2.05z',
@@ -36,6 +37,7 @@ const PATHS: Record<IconName, string> = {
   'arrow-forward': 'M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z',
   'pencil-outline': 'M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z',
   'flag-outline': 'M14.4 6L14 4H5v17h2v-7h5.6l.4 2h7V6z',
+  'trash-outline': 'M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z',
 };
 
 interface IconProps {

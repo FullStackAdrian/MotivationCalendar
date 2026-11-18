@@ -3,7 +3,7 @@
  */
 import { Op } from 'sequelize';
 import type { BoardRepository, DefaultColumnSpec } from '../../domain/repositories/board.repository';
-import type { Board, BoardMemberRow, BoardWithDetails, MemberUser } from '../../domain/types';
+import type { Board, BoardMemberRow, BoardPatch, BoardWithDetails, MemberUser } from '../../domain/types';
 import { UserModel } from '../models/database';
 import { BoardMemberModel, BoardModel, ColumnModel, TaskModel, TaskOccurrenceModel } from '../models/kanban.database';
 
@@ -85,5 +85,16 @@ export class SequelizeBoardRepository implements BoardRepository {
       include: [{ model: UserModel, as: 'user', attributes: ['id', 'username', 'email'] }]
     });
     return members.map((member) => member.user!.toJSON() as unknown as MemberUser);
+  }
+
+  async update(boardId: string, patch: BoardPatch): Promise<Board | null> {
+    const board = await BoardModel.findByPk(boardId);
+    if (!board) return null;
+    await board.update(patch);
+    return board.toJSON() as unknown as Board;
+  }
+
+  async delete(boardId: string): Promise<void> {
+    await BoardModel.destroy({ where: { id: boardId } });
   }
 }
