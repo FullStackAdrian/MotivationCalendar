@@ -86,6 +86,7 @@ export default function CalendarScreen() {
         <Text style={styles.userInfo}>Hola, {user?.username ?? ''}</Text>
         <View style={StyleSheet.flatten([styles.mainNav, isMobile && styles.mobileMainNav])}>
           <SecondaryButton title="Kanban" iconName="albums-outline" compact={isMobile} onPress={() => router.push('/kanban')} />
+          <SecondaryButton title="Ajustes" iconName="settings-outline" compact={isMobile} onPress={() => router.push('/settings')} />
           <SecondaryButton title="Salir" iconName="log-out-outline" compact={isMobile} onPress={() => logout().then(() => router.replace('/login'))} />
         </View>
       </View>

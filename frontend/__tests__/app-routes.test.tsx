@@ -12,6 +12,7 @@ import LoginScreen from '../src/screens/login-screen';
 import CalendarRoute from '../app/calendar';
 import KanbanRoute from '../app/kanban';
 import ArchiveRoute from '../app/archive';
+import SettingsRoute from '../app/settings';
 import RegisterScreen from '../src/screens/register-screen';
 
 const mockReplace = jest.fn();
@@ -51,7 +52,7 @@ describeNative('app routes', () => {
   });
 
   it('guards protected routes behind the session', async () => {
-    for (const Route of [CalendarRoute, KanbanRoute, ArchiveRoute]) {
+    for (const Route of [CalendarRoute, KanbanRoute, ArchiveRoute, SettingsRoute]) {
       const { findByText, unmount } = render(
         <AuthProvider>
           <Route />
@@ -72,6 +73,7 @@ describeNative('app routes', () => {
         [CalendarRoute, 'Cada día que pasa, ya no vuelve'],
         [KanbanRoute, 'Organiza el trabajo sin perder de vista el día.'],
         [ArchiveRoute, 'Archivo'],
+        [SettingsRoute, 'Versión y actualizaciones'],
       ] as const) {
         const { findByText, queryByText, unmount } = render(
           <AuthProvider>

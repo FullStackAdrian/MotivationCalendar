@@ -385,6 +385,7 @@ export default function KanbanScreen() {
           right={
             <View style={[styles.headerActions, isMobile && styles.mobileHeaderActions]}>
               <SecondaryButton title="Calendario" iconName="chevron-back" iconSide="left" compact={compactBtn} onPress={() => router.push('/calendar')} />
+              <SecondaryButton title="Ajustes" iconName="settings-outline" compact={compactBtn} onPress={() => router.push('/settings')} />
               <SecondaryButton title="Salir" iconName="log-out-outline" compact={compactBtn} onPress={() => logout().then(() => router.replace('/login'))} />
             </View>
           }

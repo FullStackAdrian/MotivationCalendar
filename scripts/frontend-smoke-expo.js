@@ -45,7 +45,7 @@ for (const dep of ['expo', 'expo-router', 'react', 'react-native']) {
 }
 
 // 3. Rutas expo-router
-const routes = ['_layout.tsx', 'index.tsx', 'login.tsx', 'register.tsx', 'calendar.tsx', 'kanban.tsx', 'archive.tsx'];
+const routes = ['_layout.tsx', 'index.tsx', 'login.tsx', 'register.tsx', 'calendar.tsx', 'kanban.tsx', 'archive.tsx', 'settings.tsx'];
 for (const route of routes) {
   assert(fs.existsSync(path.join(frontend, 'app', route)), `Falta la ruta app/${route}`);
 }
