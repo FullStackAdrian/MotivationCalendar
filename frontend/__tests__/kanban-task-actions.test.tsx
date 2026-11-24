@@ -155,9 +155,9 @@ describeNative('KanbanScreen board switching and errors', () => {
       }
       return Promise.resolve({ data: [] });
     });
-    const { getByText, findByText } = render(<KanbanScreen />);
+    const { getByTestId, findByText } = render(<KanbanScreen />);
     await findByText('Primera tarea');
-    fireEvent.press(getByText('Otro'));
+    fireEvent.press(getByTestId('board-selector-next'));
     expect(await findByText('Otra tarea')).toBeTruthy();
   });
 

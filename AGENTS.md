@@ -56,6 +56,12 @@ test/integration/*.test.ts ← contra Postgres real (scripts/test-db-up.sh)
 - Tests con `jest-expo/universal`: **cada suite corre 4 veces**
   (Android/iOS/Node/Web). La UI solo se testea en nativo:
   usar `describeNative` de `__tests__/helpers/projects`.
+- Cobertura frontend: se mide **solo en el proyecto iOS**
+  (`--selectProjects iOS` en `test:coverage`). El provider v8 no fusiona
+  bien la cobertura entre los 4 proyectos: los datos de Web/Node (que solo
+  importan los módulos sin ejecutar la UI) pisan los hits nativos y el
+  global cae a ~66%. En iOS corre el 100% de las suites, así que no se
+  pierde cobertura real.
 - **OJO — flake conocido**: el preset de RN polifilea
   `requestAnimationFrame` con un `setTimeout` real. Si un test dispara
   eventos de teclado/scroll con RAF sin mockear, el timer puede ejecutarse

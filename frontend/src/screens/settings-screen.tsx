@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Linking, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { AppHeader, PrimaryButton, Screen, SecondaryButton } from '@/components/ui';
+import { useAuth } from '@/contexts/auth-context';
 import { isNewerVersion } from '@/domain/app-version';
 import {
   AppUpdateRepository,
@@ -39,6 +40,7 @@ export default function SettingsScreen({
   },
 }: SettingsScreenProps) {
   const router = useRouter();
+  const { logout } = useAuth();
   const [info, setInfo] = useState<AppInfo | null>(null);
   const [checking, setChecking] = useState(true);
   const [error, setError] = useState('');
@@ -118,6 +120,16 @@ export default function SettingsScreen({
           title="Volver"
           iconName="arrow-back"
           onPress={() => router.back()}
+        />
+      </View>
+      <View style={styles.card}>
+        <Text style={styles.sectionTitle}>Sesión</Text>
+        <Text style={styles.muted}>Cierra la sesión actual en este dispositivo.</Text>
+        <SecondaryButton
+          testID="settings-logout"
+          title="Cerrar sesión"
+          iconName="log-out-outline"
+          onPress={() => logout().then(() => router.replace('/login'))}
         />
       </View>
     </Screen>

@@ -4,7 +4,6 @@ import { SafeAreaInsetsContext } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { AppHeader, Badge, Field, ModalFocusScrollContext, PrimaryButton, Screen, SecondaryButton } from '@/components/ui';
 import { Icon } from '@/components/icon';
-import { useAuth } from '@/contexts/auth-context';
 import { useResponsive } from '@/hooks/use-responsive';
 import { useScrollFocusedIntoView, useScrollToFocusedInput } from '@/hooks/use-scroll-to-focused-input';
 import { Board, BoardColumn, BoardMember, KanbanRepository, Task } from '@/infrastructure/kanban/kanban.repository';
@@ -18,7 +17,6 @@ type ModalType = 'board' | 'column' | 'task' | 'archive' | null;
 
 export default function KanbanScreen() {
   const router = useRouter();
-  const { logout } = useAuth();
   const { isMobile, isTablet } = useResponsive();
   const { width } = useWindowDimensions();
   const columnWidth = isMobile ? Math.min(Math.max(width - 48, 240), 320) : 280;
@@ -386,23 +384,28 @@ export default function KanbanScreen() {
             <View style={[styles.headerActions, isMobile && styles.mobileHeaderActions]}>
               <SecondaryButton title="Calendario" iconName="chevron-back" iconSide="left" compact={compactBtn} onPress={() => router.push('/calendar')} />
               <SecondaryButton title="Ajustes" iconName="settings-outline" compact={compactBtn} onPress={() => router.push('/settings')} />
-              <SecondaryButton title="Salir" iconName="log-out-outline" compact={compactBtn} onPress={() => logout().then(() => router.replace('/login'))} />
             </View>
           }
         />
         <View style={styles.toolbar}>
           <View style={[styles.boardPicker, isMobile && styles.mobileBoardPicker]}>
             <Text style={styles.boardPickerLabel}>Pizarra</Text>
-            <SecondaryButton title="Nueva pizarra" iconName="add" compact={isMobile} onPress={() => setModal('board')} />
-            <SecondaryButton testID="board-rename" title="Renombrar" iconName="pencil-outline" compact={isMobile} onPress={startRenameBoard} disabled={!selected} />
-            <SecondaryButton testID={confirmKey === 'board' ? 'board-delete-confirm' : 'board-delete'} title={confirmKey === 'board' ? 'Confirmar borrado' : 'Borrar'} iconName="trash-outline" compact={isMobile} onPress={deleteBoard} disabled={!selected || acting} />
-            <ScrollView horizontal showsHorizontalScrollIndicator contentContainerStyle={styles.boardOptions}>
-              {(boards ?? []).map((board) => (
-                <Pressable key={board.id} onPress={() => selectBoard(board.id)} style={[styles.boardOption, selected?.id === board.id && styles.boardOptionActive]}>
-                  <Text style={[styles.boardOptionText, selected?.id === board.id && styles.boardOptionTextActive]} numberOfLines={1} ellipsizeMode="tail">{board.name}</Text>
-                </Pressable>
-              ))}
-            </ScrollView>
+            <View testID="board-actions-row" style={styles.boardActionsRow}>
+              <View style={styles.boardActionCell}>
+                <SecondaryButton testID="board-create" title="Nueva pizarra" iconName="add" compact={isMobile} onPress={() => setModal('board')} />
+              </View>
+              <View style={styles.boardActionCell}>
+                <SecondaryButton testID="board-rename" title="Renombrar" iconName="pencil-outline" compact={isMobile} onPress={startRenameBoard} disabled={!selected} />
+              </View>
+              <View style={styles.boardActionCell}>
+                <SecondaryButton testID={confirmKey === 'board' ? 'board-delete-confirm' : 'board-delete'} title={confirmKey === 'board' ? 'Confirmar borrado' : 'Borrar'} iconName="trash-outline" compact={isMobile} onPress={deleteBoard} disabled={!selected || acting} />
+              </View>
+            </View>
+            <BoardSelector
+              boards={boards}
+              selectedId={selected?.id ?? null}
+              onSelect={selectBoard}
+            />
           </View>
           <View style={[styles.toolbarActions, isMobile && styles.mobileToolbarActions]}>
             <SecondaryButton testID="kanban-new-state" title="Nuevo estado" iconName="add" compact={compactBtn} onPress={() => selected && setModal('column')} disabled={!selected} />
@@ -438,10 +441,19 @@ export default function KanbanScreen() {
                   <Text style={styles.columnTitle} numberOfLines={1} ellipsizeMode="tail">{column.name}</Text>
                   {column.isPaused ? <Icon name="time-outline" size={12} color={theme.colors.inkMid} /> : null}
                   <Text style={styles.count}>{column.wipLimit != null ? `${columnTasks.length}/${column.wipLimit}` : columnTasks.length}</Text>
-                  <Pressable testID={`column-menu-${column.id}`} onPress={() => setMenuColumn(column)} accessibilityLabel={`Opciones de ${column.name}`} hitSlop={8} style={styles.columnMenuBtn}>
+                  <Pressable testID={`column-menu-${column.id}`} onPress={() => { setConfirmKey(null); setMenuColumn(column); }} accessibilityLabel={`Opciones de ${column.name}`} hitSlop={8} style={styles.columnMenuBtn}>
                     <Icon name="ellipsis-horizontal" size={16} color={theme.colors.inkMid} />
                   </Pressable>
                 </View>
+                {menuColumn?.id === column.id ? (
+                  <View testID={`column-menu-popover-${column.id}`} style={styles.columnPopover}>
+                    <SecondaryButton testID="column-rename" title="Renombrar" iconName="pencil-outline" fullWidth onPress={() => startRenameColumn(menuColumn)} disabled={acting} />
+                    <SecondaryButton testID="column-left" title="Mover a la izquierda" iconName="arrow-back" fullWidth onPress={() => moveColumn(menuColumn, -1)} disabled={acting || columns.findIndex((item) => item.id === menuColumn.id) <= 0} />
+                    <SecondaryButton testID="column-right" title="Mover a la derecha" iconName="arrow-forward" iconSide="right" fullWidth onPress={() => moveColumn(menuColumn, 1)} disabled={acting || columns.findIndex((item) => item.id === menuColumn.id) >= columns.length - 1} />
+                    <SecondaryButton testID={confirmKey === `column:${menuColumn.id}` ? 'column-delete-confirm' : 'column-delete'} title={confirmKey === `column:${menuColumn.id}` ? 'Confirmar borrado' : 'Eliminar'} iconName="trash-outline" fullWidth onPress={() => deleteColumn(menuColumn)} disabled={acting} />
+                    <SecondaryButton title="Cerrar" fullWidth onPress={() => { setMenuColumn(null); setConfirmKey(null); }} />
+                  </View>
+                ) : null}
                 <View style={styles.cards}>
                   {columnTasks.length ? (
                     columnTasks.map((task) => (
@@ -663,22 +675,93 @@ export default function KanbanScreen() {
         </ModalShell>
       </Modal>
 
-      <Modal visible={menuColumn != null} transparent animationType="fade" onRequestClose={() => { setMenuColumn(null); setConfirmKey(null); }}>
-        <ModalShell title={menuColumn?.name ?? ''} onClose={() => { setMenuColumn(null); setConfirmKey(null); }}>
-          {menuColumn ? (
-            <View style={styles.menuList}>
-              <SecondaryButton testID="column-rename" title="Renombrar" iconName="pencil-outline" fullWidth onPress={() => startRenameColumn(menuColumn)} disabled={acting} />
-              <SecondaryButton testID="column-left" title="Mover a la izquierda" iconName="arrow-back" fullWidth onPress={() => moveColumn(menuColumn, -1)} disabled={acting || columns.findIndex((column) => column.id === menuColumn.id) <= 0} />
-              <SecondaryButton testID="column-right" title="Mover a la derecha" iconName="arrow-forward" iconSide="right" fullWidth onPress={() => moveColumn(menuColumn, 1)} disabled={acting || columns.findIndex((column) => column.id === menuColumn.id) >= columns.length - 1} />
-              <SecondaryButton testID={confirmKey === `column:${menuColumn.id}` ? 'column-delete-confirm' : 'column-delete'} title={confirmKey === `column:${menuColumn.id}` ? 'Confirmar borrado' : 'Eliminar'} iconName="trash-outline" fullWidth onPress={() => deleteColumn(menuColumn)} disabled={acting} />
-              <SecondaryButton title="Cerrar" fullWidth onPress={() => { setMenuColumn(null); setConfirmKey(null); }} />
-            </View>
-          ) : null}
-        </ModalShell>
-      </Modal>
+      {menuColumn != null ? (
+        <Pressable testID="column-menu-backdrop" onPress={() => { setMenuColumn(null); setConfirmKey(null); }} accessibilityLabel="Cerrar opciones" style={styles.menuBackdrop} />
+      ) : null}
     </Screen>
   );
 }
+
+function BoardSelector({ boards, selectedId, onSelect }: { boards: Board[]; selectedId: string | null; onSelect: (id: string) => void }) {
+  const list = boards ?? [];
+  const selectedIndex = Math.max(0, list.findIndex((item) => item.id === selectedId));
+  const go = (direction: -1 | 1) => {
+    const next = selectedIndex + direction;
+    if (next < 0 || next >= list.length) return;
+    onSelect(list[next].id);
+  };
+  const selected = list[selectedIndex] ?? null;
+  return (
+    <View testID="board-selector" style={selectorStyles.wrap}>
+      <Pressable
+        testID="board-selector-prev"
+        onPress={() => go(-1)}
+        disabled={!selected || selectedIndex <= 0}
+        accessibilityLabel="Pizarra anterior"
+        accessibilityRole="button"
+        hitSlop={8}
+        style={({ pressed }) => [selectorStyles.nav, (!selected || selectedIndex <= 0) && selectorStyles.navDisabled, pressed && selectorStyles.navPressed]}
+      >
+        <Text style={selectorStyles.navText}>‹</Text>
+      </Pressable>
+      <ScrollView
+        testID="board-selector-pages"
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={selectorStyles.pages}
+        onMomentumScrollEnd={(event) => {
+          const viewport = event.nativeEvent.layoutMeasurement?.width ?? 0;
+          if (!viewport || !list.length) return;
+          const index = Math.round(event.nativeEvent.contentOffset.x / viewport);
+          const clamped = Math.min(Math.max(index, 0), list.length - 1);
+          if (list[clamped] && list[clamped].id !== selectedId) onSelect(list[clamped].id);
+        }}
+      >
+        {list.map((item) => (
+          <Pressable key={item.id} onPress={() => onSelect(item.id)} accessibilityRole="button" accessibilityLabel={`Pizarra ${item.name}`} style={selectorStyles.page}>
+            {item.id === selectedId ? (
+              <View testID="board-selector-current" style={selectorStyles.current}>
+                <Text style={selectorStyles.currentText} numberOfLines={1} ellipsizeMode="tail">{item.name}</Text>
+                <Text style={selectorStyles.counter}>{`${selectedIndex + 1} de ${list.length}`}</Text>
+              </View>
+            ) : (
+              <View style={selectorStyles.pageInner}>
+                <Text style={selectorStyles.pageText} numberOfLines={1} ellipsizeMode="tail">{item.name}</Text>
+              </View>
+            )}
+          </Pressable>
+        ))}
+      </ScrollView>
+      <Pressable
+        testID="board-selector-next"
+        onPress={() => go(1)}
+        disabled={!selected || selectedIndex >= list.length - 1}
+        accessibilityLabel="Pizarra siguiente"
+        accessibilityRole="button"
+        hitSlop={8}
+        style={({ pressed }) => [selectorStyles.nav, (!selected || selectedIndex >= list.length - 1) && selectorStyles.navDisabled, pressed && selectorStyles.navPressed]}
+      >
+        <Text style={selectorStyles.navText}>›</Text>
+      </Pressable>
+    </View>
+  );
+}
+
+const selectorStyles = StyleSheet.create({
+  wrap: { flexDirection: 'row', alignItems: 'center', gap: 8, width: '100%' },
+  nav: { width: 44, height: 44, borderRadius: 8, borderWidth: 1, borderColor: theme.colors.inkFaint, backgroundColor: theme.colors.white, alignItems: 'center', justifyContent: 'center' },
+  navDisabled: { opacity: 0.4 },
+  navPressed: { opacity: 0.75 },
+  navText: { color: theme.colors.ink, fontSize: 22, lineHeight: 24 },
+  pages: { flexGrow: 1, alignItems: 'center' },
+  page: { flex: 1, minWidth: 0, justifyContent: 'center' },
+  current: { backgroundColor: theme.colors.ink, borderRadius: 8, paddingHorizontal: 14, paddingVertical: 10, alignItems: 'center', gap: 2, minWidth: 140 },
+  currentText: { color: theme.colors.white, fontWeight: '600', fontSize: 14, textAlign: 'center' },
+  counter: { color: theme.colors.white, fontSize: 11, opacity: 0.8 },
+  pageInner: { borderWidth: 1, borderColor: theme.colors.inkFaint, borderRadius: 8, backgroundColor: theme.colors.white, paddingHorizontal: 14, paddingVertical: 10, alignItems: 'center', minWidth: 140 },
+  pageText: { color: theme.colors.inkMid, fontSize: 14, textAlign: 'center' },
+});
 
 function ModalShell({ title, onClose, children, footer }: { title: string; onClose: () => void; children: React.ReactNode; footer?: React.ReactNode }) {
   const insets = useContext(SafeAreaInsetsContext);
@@ -768,6 +851,8 @@ toolbar: { marginBottom: theme.spacing.lg, gap: 14 },
   boardPicker: { minWidth: 0, width: '100%', gap: 8, alignItems: 'flex-start' },
   mobileBoardPicker: { alignItems: 'stretch' },
   boardPickerLabel: { color: theme.colors.inkMid, fontSize: 11, marginBottom: 2, letterSpacing: 1, textTransform: 'uppercase' },
+  boardActionsRow: { flexDirection: 'row', gap: 8, width: '100%' },
+  boardActionCell: { flex: 1, minWidth: 0 },
   boardOptions: { gap: 6, paddingRight: 4 },
   boardOption: { borderWidth: 1, borderColor: theme.colors.inkFaint, borderRadius: 7, paddingHorizontal: 14, paddingVertical: 10, backgroundColor: theme.colors.white, maxWidth: 220 },
   boardOptionActive: { backgroundColor: theme.colors.ink, borderColor: theme.colors.ink },
@@ -791,6 +876,25 @@ toolbar: { marginBottom: theme.spacing.lg, gap: 14 },
   columnTitle: { color: theme.colors.ink, fontWeight: '600', flex: 1 },
   count: { color: theme.colors.inkMid, fontSize: 12 },
   columnMenuBtn: { padding: 6, borderRadius: 6 },
+  columnPopover: {
+    position: 'absolute',
+    top: 44,
+    right: 8,
+    width: 230,
+    backgroundColor: theme.colors.white,
+    borderWidth: 1,
+    borderColor: theme.colors.inkFaint,
+    borderRadius: 12,
+    padding: 8,
+    gap: 8,
+    zIndex: 30,
+    shadowColor: theme.colors.ink,
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
+  },
+  menuBackdrop: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 20 },
   detailBtn: { position: 'absolute', right: 6, bottom: 6, padding: 6, borderRadius: 6 },
   detailActions: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
   detailBody: { gap: 10 },
