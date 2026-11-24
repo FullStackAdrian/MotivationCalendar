@@ -1,6 +1,6 @@
 {
   "name": "motivation-calendar",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Aplicación de seguimiento de hábitos con autenticación JWT y sincronización multi-dispositivo",
   "main": "backend/dist/server.js",
   "scripts": {
