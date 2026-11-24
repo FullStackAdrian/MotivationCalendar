@@ -3,7 +3,6 @@ import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-nat
 import { useRouter } from 'expo-router';
 import { AppHeader, Screen, SecondaryButton } from '@/components/ui';
 import { Icon } from '@/components/icon';
-import { useAuth } from '@/contexts/auth-context';
 import { useResponsive } from '@/hooks/use-responsive';
 import { Board, KanbanRepository, Task } from '@/infrastructure/kanban/kanban.repository';
 import { theme } from '@/theme';
@@ -12,7 +11,6 @@ const repository = new KanbanRepository();
 
 export default function ArchiveScreen() {
   const router = useRouter();
-  const { logout } = useAuth();
   const { isMobile } = useResponsive();
   const [boards, setBoards] = useState<Board[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -65,7 +63,6 @@ export default function ArchiveScreen() {
           right={
             <View style={[styles.actions, isMobile && styles.mobileActions]}>
               <SecondaryButton title="Kanban" iconName="chevron-back" iconSide="left" compact={compactBtn} onPress={() => router.push('/kanban')} />
-              <SecondaryButton title="Salir" iconName="log-out-outline" compact={compactBtn} onPress={() => logout().then(() => router.replace('/login'))} />
             </View>
           }
         />

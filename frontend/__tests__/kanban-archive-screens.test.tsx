@@ -110,14 +110,11 @@ describeNative('KanbanScreen', () => {
     );
   });
 
-  it('logs out back to login', async () => {
-    const logout = jest.fn().mockResolvedValue(undefined);
-    mockUseAuth.mockReturnValue(authState({ logout }));
+  it('no longer offers Salir in the kanban header (moved to settings)', async () => {
     http().get.mockResolvedValue({ data: [] });
-    const { getByText, findByText } = render(<KanbanScreen />);
+    const { queryByText, findByText } = render(<KanbanScreen />);
     await findByText('Organiza el trabajo sin perder de vista el día.');
-    fireEvent.press(getByText('Salir'));
-    await waitFor(() => expect(logout).toHaveBeenCalled());
+    expect(queryByText('Salir')).toBeNull();
   });
 
   it('shows loading errors', async () => {

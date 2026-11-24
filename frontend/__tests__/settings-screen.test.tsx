@@ -1,5 +1,6 @@
 import React from 'react';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
+import { useAuth } from '../src/contexts/auth-context';
 import { describeNative } from './helpers/projects';
 import SettingsScreen from '../src/screens/settings-screen';
 import type { AppInfo } from '../src/infrastructure/download/app-update.repository';
@@ -7,6 +8,19 @@ import type { AppInfo } from '../src/infrastructure/download/app-update.reposito
 jest.mock('expo-router', () => ({
   useRouter: () => ({ replace: jest.fn(), push: jest.fn(), back: jest.fn() }),
 }));
+
+jest.mock('../src/contexts/auth-context', () => ({
+  useAuth: jest.fn().mockReturnValue({
+    user: { id: 'u1', username: 'alice', email: 'a@b.com' },
+    loading: false,
+    sessionExpired: false,
+    login: jest.fn(),
+    register: jest.fn(),
+    logout: jest.fn().mockResolvedValue(undefined),
+  }),
+}));
+
+const mockUseAuth = jest.mocked(useAuth);
 
 function info(overrides: Partial<AppInfo> = {}): AppInfo {
   return {

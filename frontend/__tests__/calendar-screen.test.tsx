@@ -61,16 +61,12 @@ describeNative('CalendarScreen', () => {
     expect(getByText('365 oportunidades', { exact: false })).toBeTruthy();
   });
 
-  it('navigates to kanban and logs out', async () => {
-    const logout = jest.fn().mockResolvedValue(undefined);
-    mockUseAuth.mockReturnValue(authState({ logout }));
-    const { getByText, findByText } = render(<CalendarScreen />);
+  it('navigates to kanban (logout lives in settings now)', async () => {
+    const { getByText, findByText, queryByText } = render(<CalendarScreen />);
     await findByText('Cada día que pasa, ya no vuelve');
     fireEvent.press(getByText('Kanban'));
     expect(mockPush).toHaveBeenCalledWith('/kanban');
-    fireEvent.press(getByText('Salir'));
-    await waitFor(() => expect(logout).toHaveBeenCalled());
-    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/login'));
+    expect(queryByText('Salir')).toBeNull();
   });
 
   it('shows an error when progress cannot load', async () => {

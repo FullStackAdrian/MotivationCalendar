@@ -16,7 +16,7 @@ type VisualState = 'past' | 'future' | 'done' | 'partial' | 'miss' | 'today';
 
 export default function CalendarScreen() {
   const router = useRouter();
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const { isMobile, isTablet } = useResponsive();
   const [progress, setProgress] = useState<Record<string, keyof typeof API_TO_STATUS>>({});
   const [error, setError] = useState('');
@@ -87,7 +87,6 @@ export default function CalendarScreen() {
         <View style={StyleSheet.flatten([styles.mainNav, isMobile && styles.mobileMainNav])}>
           <SecondaryButton title="Kanban" iconName="albums-outline" compact={isMobile} onPress={() => router.push('/kanban')} />
           <SecondaryButton title="Ajustes" iconName="settings-outline" compact={isMobile} onPress={() => router.push('/settings')} />
-          <SecondaryButton title="Salir" iconName="log-out-outline" compact={isMobile} onPress={() => logout().then(() => router.replace('/login'))} />
         </View>
       </View>
       <View style={StyleSheet.flatten([styles.hero, isTablet && styles.tabletHero, isMobile && styles.mobileHero])}>
