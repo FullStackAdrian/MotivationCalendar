@@ -121,6 +121,32 @@ describeNative('UX pizarras: selector deslizable', () => {
     expect(await findByText('Otra tarea')).toBeTruthy();
     expect(queryByText('Primera tarea')).toBeNull();
   });
+
+  it('cambia de pizarra con el gesto de deslizamiento', async () => {
+    mockTwoBoards();
+    const { getByTestId, findByText, queryByText } = render(<KanbanScreen />);
+    await findByText('Primera tarea');
+    fireEvent(getByTestId('board-selector-pages'), 'onMomentumScrollEnd', {
+      nativeEvent: { layoutMeasurement: { width: 300 }, contentOffset: { x: 300 } },
+    });
+    expect(await findByText('Otra tarea')).toBeTruthy();
+    expect(queryByText('Primera tarea')).toBeNull();
+  });
+
+  it('los extremos del selector no cambian de pizarra', async () => {
+    mockTwoBoards();
+    const { getByTestId, findByText, queryByText } = render(<KanbanScreen />);
+    await findByText('Primera tarea');
+    expect(getByTestId('board-selector-prev').props.accessibilityState?.disabled).toBe(true);
+    fireEvent.press(getByTestId('board-selector-prev'));
+    expect(await findByText('Primera tarea')).toBeTruthy();
+    fireEvent.press(getByTestId('board-selector-next'));
+    expect(await findByText('Otra tarea')).toBeTruthy();
+    expect(getByTestId('board-selector-next').props.accessibilityState?.disabled).toBe(true);
+    fireEvent.press(getByTestId('board-selector-next'));
+    expect(await findByText('Otra tarea')).toBeTruthy();
+    expect(queryByText('Primera tarea')).toBeNull();
+  });
 });
 
 describeNative('UX sesión: cerrar sesión vive en ajustes', () => {

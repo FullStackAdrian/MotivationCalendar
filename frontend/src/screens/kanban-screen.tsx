@@ -705,6 +705,7 @@ function BoardSelector({ boards, selectedId, onSelect }: { boards: Board[]; sele
         <Text style={selectorStyles.navText}>‹</Text>
       </Pressable>
       <ScrollView
+        testID="board-selector-pages"
         horizontal
         pagingEnabled
         showsHorizontalScrollIndicator={false}
