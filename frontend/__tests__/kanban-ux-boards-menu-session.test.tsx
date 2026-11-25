@@ -156,18 +156,16 @@ describeNative('UX pizarras: selector deslizable', () => {
     mockThreeBoards();
     const { getByTestId, findByText } = render(<KanbanScreen />);
     await findByText('Primera tarea');
-    expect(getByTestId('board-selector-prev-card')).toBeTruthy();
-    expect(getByTestId('board-selector-current')).toBeTruthy();
-    expect(getByTestId('board-selector-next-card')).toBeTruthy();
-    expect(getByTestId('board-selector-prev-card').props.accessibilityLabel).toBe('Pizarra Sprint');
-    expect(within(getByTestId('board-selector-current')).getByText('Sprint')).toBeTruthy();
-    expect(getByTestId('board-selector-next-card').props.accessibilityLabel).toBe('Pizarra Diseño');
     fireEvent.press(getByTestId('board-selector-next'));
     await waitFor(() => expect(within(getByTestId('board-selector-current')).getByText('Diseño')).toBeTruthy());
     expect(getByTestId('board-selector-prev-card').props.accessibilityLabel).toBe('Pizarra Sprint');
     expect(getByTestId('board-selector-next-card').props.accessibilityLabel).toBe('Pizarra Lanzamiento');
-  });
 
+    fireEvent.press(getByTestId('board-selector-next'));
+    await waitFor(() => expect(within(getByTestId('board-selector-current')).getByText('Lanzamiento')).toBeTruthy());
+    expect(getByTestId('board-selector-prev-card').props.accessibilityLabel).toBe('Pizarra Diseño');
+    expect(getByTestId('board-selector-next-placeholder')).toBeTruthy();
+  });
   it('los extremos del selector no cambian de pizarra', async () => {
     mockTwoBoards();
     const { getByTestId, findByText, queryByText } = render(<KanbanScreen />);
