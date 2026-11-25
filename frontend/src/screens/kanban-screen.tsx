@@ -688,62 +688,69 @@ export default function KanbanScreen() {
 function BoardSelector({ boards, selectedId, onSelect }: { boards: Board[]; selectedId: string | null; onSelect: (id: string) => void }) {
   const list = boards ?? [];
   const selectedIndex = Math.max(0, list.findIndex((item) => item.id === selectedId));
-  const go = (direction: -1 | 1) => {
-    const next = selectedIndex + direction;
-    if (next < 0 || next >= list.length) return;
-    onSelect(list[next].id);
-  };
   const selected = list[selectedIndex] ?? null;
+  const previous = selectedIndex > 0 ? list[selectedIndex - 1] : null;
+  const next = selectedIndex < list.length - 1 ? list[selectedIndex + 1] : null;
+  const go = (direction: -1 | 1) => {
+    const target = list[selectedIndex + direction];
+    if (target) onSelect(target.id);
+  };
+
   return (
     <View testID="board-selector" style={selectorStyles.wrap}>
       <Pressable
         testID="board-selector-prev"
         onPress={() => go(-1)}
-        disabled={!selected || selectedIndex <= 0}
+        disabled={!previous}
         accessibilityLabel="Pizarra anterior"
         accessibilityRole="button"
         hitSlop={8}
-        style={({ pressed }) => [selectorStyles.nav, (!selected || selectedIndex <= 0) && selectorStyles.navDisabled, pressed && selectorStyles.navPressed]}
+        style={({ pressed }) => [selectorStyles.nav, !previous && selectorStyles.navDisabled, pressed && selectorStyles.navPressed]}
       >
         <Text style={selectorStyles.navText}>‹</Text>
       </Pressable>
-      <ScrollView
-        testID="board-selector-pages"
-        horizontal
-        pagingEnabled
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={selectorStyles.pages}
-        onMomentumScrollEnd={(event) => {
-          const viewport = event.nativeEvent.layoutMeasurement?.width ?? 0;
-          if (!viewport || !list.length) return;
-          const index = Math.round(event.nativeEvent.contentOffset.x / viewport);
-          const clamped = Math.min(Math.max(index, 0), list.length - 1);
-          if (list[clamped] && list[clamped].id !== selectedId) onSelect(list[clamped].id);
-        }}
-      >
-        {list.map((item) => (
-          <Pressable key={item.id} onPress={() => onSelect(item.id)} accessibilityRole="button" accessibilityLabel={`Pizarra ${item.name}`} style={selectorStyles.page}>
-            {item.id === selectedId ? (
-              <View testID="board-selector-current" style={selectorStyles.current}>
-                <Text style={selectorStyles.currentText} numberOfLines={1} ellipsizeMode="tail">{item.name}</Text>
-                <Text style={selectorStyles.counter}>{`${selectedIndex + 1} de ${list.length}`}</Text>
-              </View>
-            ) : (
-              <View style={selectorStyles.pageInner}>
-                <Text style={selectorStyles.pageText} numberOfLines={1} ellipsizeMode="tail">{item.name}</Text>
-              </View>
-            )}
+
+      <View style={selectorStyles.cards}>
+        {previous ? (
+          <Pressable
+            testID="board-selector-prev-card"
+            onPress={() => onSelect(previous.id)}
+            accessibilityRole="button"
+            accessibilityLabel={`Pizarra ${previous.name}`}
+            style={selectorStyles.sideCard}
+          >
+            <Text style={selectorStyles.sideText} numberOfLines={1} ellipsizeMode="tail">{previous.name}</Text>
           </Pressable>
-        ))}
-      </ScrollView>
+        ) : <View testID="board-selector-prev-placeholder" style={selectorStyles.sidePlaceholder} />}
+
+        {selected ? (
+          <View testID="board-selector-current" style={selectorStyles.current}>
+            <Text style={selectorStyles.currentText} numberOfLines={1} ellipsizeMode="tail">{selected.name}</Text>
+            <Text style={selectorStyles.counter}>{`${selectedIndex + 1} de ${list.length}`}</Text>
+          </View>
+        ) : <View style={selectorStyles.current} />}
+
+        {next ? (
+          <Pressable
+            testID="board-selector-next-card"
+            onPress={() => onSelect(next.id)}
+            accessibilityRole="button"
+            accessibilityLabel={`Pizarra ${next.name}`}
+            style={selectorStyles.sideCard}
+          >
+            <Text style={selectorStyles.sideText} numberOfLines={1} ellipsizeMode="tail">{next.name}</Text>
+          </Pressable>
+        ) : <View testID="board-selector-next-placeholder" style={selectorStyles.sidePlaceholder} />}
+      </View>
+
       <Pressable
         testID="board-selector-next"
         onPress={() => go(1)}
-        disabled={!selected || selectedIndex >= list.length - 1}
+        disabled={!next}
         accessibilityLabel="Pizarra siguiente"
         accessibilityRole="button"
         hitSlop={8}
-        style={({ pressed }) => [selectorStyles.nav, (!selected || selectedIndex >= list.length - 1) && selectorStyles.navDisabled, pressed && selectorStyles.navPressed]}
+        style={({ pressed }) => [selectorStyles.nav, !next && selectorStyles.navDisabled, pressed && selectorStyles.navPressed]}
       >
         <Text style={selectorStyles.navText}>›</Text>
       </Pressable>
@@ -752,20 +759,19 @@ function BoardSelector({ boards, selectedId, onSelect }: { boards: Board[]; sele
 }
 
 const selectorStyles = StyleSheet.create({
-  wrap: { flexDirection: 'row', alignItems: 'center', gap: 8, width: '100%' },
-  nav: { width: 44, height: 44, borderRadius: 8, borderWidth: 1, borderColor: theme.colors.inkFaint, backgroundColor: theme.colors.white, alignItems: 'center', justifyContent: 'center' },
-  navDisabled: { opacity: 0.4 },
+  wrap: { flexDirection: 'row', alignItems: 'center', gap: 6, width: '100%' },
+  nav: { width: 36, height: 40, flexShrink: 0, borderRadius: 8, borderWidth: 1, borderColor: theme.colors.inkFaint, backgroundColor: theme.colors.white, alignItems: 'center', justifyContent: 'center' },
+  navDisabled: { opacity: 0.35 },
   navPressed: { opacity: 0.75 },
   navText: { color: theme.colors.ink, fontSize: 22, lineHeight: 24 },
-  pages: { flexGrow: 1, alignItems: 'center' },
-  page: { flex: 1, minWidth: 0, justifyContent: 'center' },
-  current: { backgroundColor: theme.colors.ink, borderRadius: 8, paddingHorizontal: 14, paddingVertical: 10, alignItems: 'center', gap: 2, minWidth: 140 },
-  currentText: { color: theme.colors.white, fontWeight: '600', fontSize: 14, textAlign: 'center' },
-  counter: { color: theme.colors.white, fontSize: 11, opacity: 0.8 },
-  pageInner: { borderWidth: 1, borderColor: theme.colors.inkFaint, borderRadius: 8, backgroundColor: theme.colors.white, paddingHorizontal: 14, paddingVertical: 10, alignItems: 'center', minWidth: 140 },
-  pageText: { color: theme.colors.inkMid, fontSize: 14, textAlign: 'center' },
+  cards: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 6 },
+  sideCard: { flex: 1, minWidth: 0, minHeight: 40, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 5, paddingVertical: 8, borderWidth: 1, borderColor: theme.colors.inkFaint, borderRadius: 8, backgroundColor: theme.colors.white, opacity: 0.78 },
+  sidePlaceholder: { flex: 1, minWidth: 0, minHeight: 40 },
+  sideText: { color: theme.colors.inkMid, fontSize: 11, textAlign: 'center' },
+  current: { flex: 1.2, minWidth: 0, minHeight: 48, justifyContent: 'center', backgroundColor: theme.colors.ink, borderRadius: 8, paddingHorizontal: 7, paddingVertical: 8, alignItems: 'center', gap: 2 },
+  currentText: { color: theme.colors.white, fontWeight: '600', fontSize: 13, textAlign: 'center' },
+  counter: { color: theme.colors.white, fontSize: 10, opacity: 0.8 },
 });
-
 function ModalShell({ title, onClose, children, footer }: { title: string; onClose: () => void; children: React.ReactNode; footer?: React.ReactNode }) {
   const insets = useContext(SafeAreaInsetsContext);
   const bottom = insets?.bottom ?? 0;
