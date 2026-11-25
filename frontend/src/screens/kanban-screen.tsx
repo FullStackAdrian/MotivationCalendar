@@ -394,13 +394,13 @@ export default function KanbanScreen() {
             <Text style={styles.boardPickerLabel}>Pizarra</Text>
             <View testID="board-actions-row" style={styles.boardActionsRow}>
               <View style={styles.boardActionCell}>
-                <SecondaryButton testID="board-create" title="Nueva pizarra" iconName="add" compact={isMobile} onPress={() => setModal('board')} />
+                <SecondaryButton testID="board-create" title="Nueva pizarra" iconName="add" compact={isMobile} small={isMobile} onPress={() => setModal('board')} />
               </View>
               <View style={styles.boardActionCell}>
-                <SecondaryButton testID="board-rename" title="Renombrar" iconName="pencil-outline" compact={isMobile} onPress={startRenameBoard} disabled={!selected} />
+                <SecondaryButton testID="board-rename" title="Renombrar" iconName="pencil-outline" compact={isMobile} small={isMobile} onPress={startRenameBoard} disabled={!selected} />
               </View>
               <View style={styles.boardActionCell}>
-                <SecondaryButton testID={confirmKey === 'board' ? 'board-delete-confirm' : 'board-delete'} title={confirmKey === 'board' ? 'Confirmar borrado' : 'Borrar'} iconName="trash-outline" compact={isMobile} onPress={deleteBoard} disabled={!selected || acting} />
+                <SecondaryButton testID={confirmKey === 'board' ? 'board-delete-confirm' : 'board-delete'} title={confirmKey === 'board' ? 'Confirmar borrado' : 'Borrar'} iconName="trash-outline" compact={isMobile} small={isMobile} onPress={deleteBoard} disabled={!selected || acting} />
               </View>
             </View>
             <BoardSelector
