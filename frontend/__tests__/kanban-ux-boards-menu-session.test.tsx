@@ -103,6 +103,12 @@ describeNative('UX pizarras: fila 3 acciones con iconos', () => {
     expect(getByTestId('board-create')).toBeTruthy();
     expect(getByTestId('board-rename')).toBeTruthy();
     expect(getByTestId('board-delete')).toBeTruthy();
+
+    // En móvil, las tres acciones deben ocupar menos altura que un botón compacto estándar.
+    for (const testID of ['board-create', 'board-rename', 'board-delete']) {
+      const button = getByTestId(testID);
+      expect(StyleSheet.flatten(button.props.style).minHeight).toBe(36);
+    }
   });
 });
 
