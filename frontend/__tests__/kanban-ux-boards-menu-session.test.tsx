@@ -136,6 +136,21 @@ describeNative('UX pizarras: fila 3 acciones con iconos', () => {
   });
 });
 
+describeNative('UX toolbar: acciones con altura uniforme', () => {
+  it('iguala Nuevo estado, Nueva tarea y Archivo a los botones de acciones de pizarra en móvil', async () => {
+    mockSingleBoard();
+    const { getByTestId, findByText } = render(<KanbanScreen />);
+    await findByText('Primera tarea');
+
+    const reference = StyleSheet.flatten(getByTestId('board-create').props.style);
+    for (const testID of ['kanban-new-state', 'kanban-new-task', 'kanban-archive']) {
+      const actual = StyleSheet.flatten(getByTestId(testID).props.style);
+      expect(actual.minHeight).toBe(reference.minHeight);
+      expect(actual.paddingHorizontal).toBe(reference.paddingHorizontal);
+    }
+  });
+});
+
 describeNative('UX pizarras: selector deslizable', () => {
   it('ofrece prev/actual/next y cambia de pizarra sin un botón por pizarra', async () => {
     mockTwoBoards();
