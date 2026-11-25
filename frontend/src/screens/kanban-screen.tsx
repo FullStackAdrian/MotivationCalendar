@@ -280,6 +280,8 @@ export default function KanbanScreen() {
     setActing(true);
     try {
       await repository.reorderColumn(selected.id, column.id, target);
+      setMenuColumn(null);
+      setConfirmKey(null);
       await loadBoards(selected.id);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No se pudo mover el estado');
@@ -445,15 +447,6 @@ export default function KanbanScreen() {
                     <Icon name="ellipsis-horizontal" size={16} color={theme.colors.inkMid} />
                   </Pressable>
                 </View>
-                {menuColumn?.id === column.id ? (
-                  <View testID={`column-menu-popover-${column.id}`} style={styles.columnPopover}>
-                    <SecondaryButton testID="column-rename" title="Renombrar" iconName="pencil-outline" fullWidth onPress={() => startRenameColumn(menuColumn)} disabled={acting} />
-                    <SecondaryButton testID="column-left" title="Mover a la izquierda" iconName="arrow-back" fullWidth onPress={() => moveColumn(menuColumn, -1)} disabled={acting || columns.findIndex((item) => item.id === menuColumn.id) <= 0} />
-                    <SecondaryButton testID="column-right" title="Mover a la derecha" iconName="arrow-forward" iconSide="right" fullWidth onPress={() => moveColumn(menuColumn, 1)} disabled={acting || columns.findIndex((item) => item.id === menuColumn.id) >= columns.length - 1} />
-                    <SecondaryButton testID={confirmKey === `column:${menuColumn.id}` ? 'column-delete-confirm' : 'column-delete'} title={confirmKey === `column:${menuColumn.id}` ? 'Confirmar borrado' : 'Eliminar'} iconName="trash-outline" fullWidth onPress={() => deleteColumn(menuColumn)} disabled={acting} />
-                    <SecondaryButton title="Cerrar" fullWidth onPress={() => { setMenuColumn(null); setConfirmKey(null); }} />
-                  </View>
-                ) : null}
                 <View style={styles.cards}>
                   {columnTasks.length ? (
                     columnTasks.map((task) => (
@@ -678,6 +671,16 @@ export default function KanbanScreen() {
       {menuColumn != null ? (
         <Pressable testID="column-menu-backdrop" onPress={() => { setMenuColumn(null); setConfirmKey(null); }} accessibilityLabel="Cerrar opciones" style={styles.menuBackdrop} />
       ) : null}
+      {menuColumn != null ? (
+        <View testID={`column-menu-popover-${menuColumn.id}`} style={styles.columnPopoverFloating}>
+          <Text style={styles.columnPopoverTitle} numberOfLines={1} ellipsizeMode="tail">{menuColumn.name}</Text>
+          <SecondaryButton testID="column-rename" title="Renombrar" iconName="pencil-outline" fullWidth onPress={() => startRenameColumn(menuColumn)} disabled={acting} />
+          <SecondaryButton testID="column-left" title="Mover a la izquierda" iconName="arrow-back" fullWidth onPress={() => moveColumn(menuColumn, -1)} disabled={acting || columns.findIndex((item) => item.id === menuColumn.id) <= 0} />
+          <SecondaryButton testID="column-right" title="Mover a la derecha" iconName="arrow-forward" iconSide="right" fullWidth onPress={() => moveColumn(menuColumn, 1)} disabled={acting || columns.findIndex((item) => item.id === menuColumn.id) >= columns.length - 1} />
+          <SecondaryButton testID={confirmKey === `column:${menuColumn.id}` ? 'column-delete-confirm' : 'column-delete'} title={confirmKey === `column:${menuColumn.id}` ? 'Confirmar borrado' : 'Eliminar'} iconName="trash-outline" fullWidth onPress={() => deleteColumn(menuColumn)} disabled={acting} />
+          <SecondaryButton title="Cerrar" fullWidth onPress={() => { setMenuColumn(null); setConfirmKey(null); }} />
+        </View>
+      ) : null}
     </Screen>
   );
 }
@@ -876,11 +879,11 @@ toolbar: { marginBottom: theme.spacing.lg, gap: 14 },
   columnTitle: { color: theme.colors.ink, fontWeight: '600', flex: 1 },
   count: { color: theme.colors.inkMid, fontSize: 12 },
   columnMenuBtn: { padding: 6, borderRadius: 6 },
-  columnPopover: {
+  columnPopoverFloating: {
     position: 'absolute',
-    top: 44,
-    right: 8,
-    width: 230,
+    top: 150,
+    right: 12,
+    width: 240,
     backgroundColor: theme.colors.white,
     borderWidth: 1,
     borderColor: theme.colors.inkFaint,
@@ -892,8 +895,9 @@ toolbar: { marginBottom: theme.spacing.lg, gap: 14 },
     shadowOpacity: 0.12,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 4 },
-    elevation: 4,
+    elevation: 8,
   },
+  columnPopoverTitle: { color: theme.colors.inkMid, fontSize: 12, paddingHorizontal: 4, marginBottom: 2 },
   menuBackdrop: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 20 },
   detailBtn: { position: 'absolute', right: 6, bottom: 6, padding: 6, borderRadius: 6 },
   detailActions: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
