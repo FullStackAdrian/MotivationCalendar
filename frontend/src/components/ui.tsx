@@ -24,6 +24,7 @@ interface BaseButtonProps {
   onPress: () => void;
   disabled?: boolean;
   compact?: boolean;
+  small?: boolean;
   fullWidth?: boolean;
   iconName?: IconName;
   iconSide?: 'left' | 'right';
@@ -45,19 +46,19 @@ export function PrimaryButton({ title, onPress, disabled = false, compact = fals
   return <Pressable testID={testID} disabled={disabled} accessibilityState={{ disabled }} onPress={onPress} hitSlop={8} style={[styles.button, compact && styles.buttonCompact, fullWidth && styles.fullWidth, disabled && styles.disabled]}>{content}</Pressable>;
 }
 
-export function SecondaryButton({ title, onPress, disabled = false, compact = false, fullWidth = false, iconName, iconSide = 'left', testID }: BaseButtonProps) {
+export function SecondaryButton({ title, onPress, disabled = false, compact = false, small = false, fullWidth = false, iconName, iconSide = 'left', testID }: BaseButtonProps) {
   const content = (
     <>
       {iconName && iconSide === 'left' ? (
         <View style={styles.iconWrap}><Icon name={iconName} size={compact ? theme.iconSize.sm : theme.iconSize.md} color={theme.colors.inkMid} /></View>
       ) : null}
-      <Text style={[styles.secondaryText, compact && styles.secondaryTextCompact]} numberOfLines={1}>{title}</Text>
+      <Text style={[styles.secondaryText, compact && styles.secondaryTextCompact, small && styles.secondaryTextSmall]} numberOfLines={1}>{title}</Text>
       {iconName && iconSide === 'right' ? (
         <View style={styles.iconWrap}><Icon name={iconName} size={compact ? theme.iconSize.sm : theme.iconSize.md} color={theme.colors.inkMid} /></View>
       ) : null}
     </>
   );
-  return <Pressable testID={testID} disabled={disabled} accessibilityState={{ disabled }} onPress={onPress} hitSlop={8} style={[styles.secondary, compact && styles.secondaryCompact, fullWidth && styles.fullWidth, disabled && styles.disabled]}>{content}</Pressable>;
+  return <Pressable testID={testID} disabled={disabled} accessibilityState={{ disabled }} onPress={onPress} hitSlop={8} style={[styles.secondary, compact && styles.secondaryCompact, small && styles.secondarySmall, fullWidth && styles.fullWidth, disabled && styles.disabled]}>{content}</Pressable>;
 }
 
 export const Field = React.forwardRef<TextInput, TextInputProps & { label: string }>(function Field({ label, onFocus, ...props }, ref) {
@@ -85,9 +86,11 @@ const styles = StyleSheet.create({
   disabled: { opacity: 0.55 },
   secondary: { borderWidth: 1, borderColor: theme.colors.inkFaint, borderRadius: theme.radius.sm, minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingHorizontal: theme.spacing.md, gap: 6 },
   secondaryCompact: { minHeight: 44, paddingHorizontal: theme.spacing.sm },
+  secondarySmall: { minHeight: 36, paddingHorizontal: 6, gap: 4 },
   fullWidth: { width: '100%', alignSelf: 'stretch' },
   secondaryText: { color: theme.colors.inkMid, fontSize: theme.typography.small },
   secondaryTextCompact: { fontSize: 13 },
+  secondaryTextSmall: { fontSize: 11 },
   iconWrap: { alignItems: 'center', justifyContent: 'center' },
   field: { gap: 6, minWidth: 0, width: '100%' },
   label: { color: theme.colors.inkMid, fontSize: 13, letterSpacing: 0.6 },
