@@ -82,6 +82,26 @@ function mockTwoBoards() {
   });
 }
 
+function mockThreeBoards() {
+  http().get.mockImplementation((url: string) => {
+    if (url === '/api/kanban/boards') {
+      return Promise.resolve({ data: [
+        { id: 'b1', name: 'Sprint' },
+        { id: 'b2', name: 'Diseño' },
+        { id: 'b3', name: 'Lanzamiento' },
+      ] });
+    }
+    if (url === '/api/kanban/boards/b1') return Promise.resolve({ data: board });
+    if (url === '/api/kanban/boards/b2') {
+      return Promise.resolve({ data: { id: 'b2', name: 'Diseño', columns: [], tasks: [] } });
+    }
+    if (url === '/api/kanban/boards/b3') {
+      return Promise.resolve({ data: { id: 'b3', name: 'Lanzamiento', columns: [], tasks: [] } });
+    }
+    return Promise.resolve({ data: [] });
+  });
+}
+
 function mockSingleBoard() {
   http().get.mockImplementation((url: string) => {
     if (url === '/api/kanban/boards') return Promise.resolve({ data: [{ id: 'b1', name: 'Sprint', columns: [] }] });
@@ -132,15 +152,21 @@ describeNative('UX pizarras: selector deslizable', () => {
     expect(queryByText('Primera tarea')).toBeNull();
   });
 
-  it('cambia de pizarra con el gesto de deslizamiento', async () => {
-    mockTwoBoards();
-    const { getByTestId, findByText, queryByText } = render(<KanbanScreen />);
+  it('mantiene la pizarra seleccionada centrada y muestra la anterior y la siguiente', async () => {
+    mockThreeBoards();
+    const { getByTestId, findByText } = render(<KanbanScreen />);
     await findByText('Primera tarea');
-    fireEvent(getByTestId('board-selector-pages'), 'onMomentumScrollEnd', {
-      nativeEvent: { layoutMeasurement: { width: 300 }, contentOffset: { x: 300 } },
-    });
-    expect(await findByText('Otra tarea')).toBeTruthy();
-    expect(queryByText('Primera tarea')).toBeNull();
+    expect(getByTestId('board-selector-prev-card')).toBeTruthy();
+    expect(getByTestId('board-selector-current')).toBeTruthy();
+    expect(getByTestId('board-selector-next-card')).toBeTruthy();
+    expect(getByTestId('board-selector-prev-card').props.accessibilityLabel).toBe('Pizarra Sprint');
+    expect(getByTestId('board-selector-current').props.children).toBeTruthy();
+    expect(getByTestId('board-selector-next-card').props.accessibilityLabel).toBe('Pizarra Diseño');
+    fireEvent.press(getByTestId('board-selector-next'));
+    expect(await findByText('Otra tarea').catch(() => null)).toBeNull();
+    expect(getByTestId('board-selector-prev-card').props.accessibilityLabel).toBe('Pizarra Sprint');
+    expect(getByTestId('board-selector-current').props.children).toBeTruthy();
+    expect(getByTestId('board-selector-next-card').props.accessibilityLabel).toBe('Pizarra Lanzamiento');
   });
 
   it('los extremos del selector no cambian de pizarra', async () => {
