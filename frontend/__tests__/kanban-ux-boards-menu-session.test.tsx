@@ -20,6 +20,10 @@ jest.mock('../src/contexts/auth-context', () => ({
   AuthProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
 
+jest.mock('../src/hooks/use-responsive', () => ({
+  useResponsive: () => ({ width: 390, height: 844, size: 'mobile', isMobile: true, isTablet: false, isDesktop: false, isCompact: false }),
+}));
+
 jest.mock('axios', () => {
   const instance = {
     get: jest.fn(),
