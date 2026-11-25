@@ -160,12 +160,11 @@ describeNative('UX pizarras: selector deslizable', () => {
     expect(getByTestId('board-selector-current')).toBeTruthy();
     expect(getByTestId('board-selector-next-card')).toBeTruthy();
     expect(getByTestId('board-selector-prev-card').props.accessibilityLabel).toBe('Pizarra Sprint');
-    expect(getByTestId('board-selector-current').props.children).toBeTruthy();
+    expect(within(getByTestId('board-selector-current')).getByText('Sprint')).toBeTruthy();
     expect(getByTestId('board-selector-next-card').props.accessibilityLabel).toBe('Pizarra Diseño');
     fireEvent.press(getByTestId('board-selector-next'));
-    expect(await findByText('Otra tarea').catch(() => null)).toBeNull();
+    await waitFor(() => expect(within(getByTestId('board-selector-current')).getByText('Diseño')).toBeTruthy());
     expect(getByTestId('board-selector-prev-card').props.accessibilityLabel).toBe('Pizarra Sprint');
-    expect(getByTestId('board-selector-current').props.children).toBeTruthy();
     expect(getByTestId('board-selector-next-card').props.accessibilityLabel).toBe('Pizarra Lanzamiento');
   });
 
