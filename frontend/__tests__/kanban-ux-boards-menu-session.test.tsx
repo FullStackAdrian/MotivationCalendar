@@ -143,10 +143,18 @@ describeNative('UX toolbar: acciones con altura uniforme', () => {
     await findByText('Primera tarea');
 
     const reference = StyleSheet.flatten(getByTestId('board-create').props.style);
-    for (const testID of ['kanban-new-state', 'kanban-new-task', 'kanban-archive']) {
+    for (const [testID, cellTestID] of [
+      ['kanban-new-state', 'kanban-action-cell-new-state'],
+      ['kanban-new-task', 'kanban-action-cell-new-task'],
+      ['kanban-archive', 'kanban-action-cell-archive'],
+    ]) {
       const actual = StyleSheet.flatten(getByTestId(testID).props.style);
+      const cell = StyleSheet.flatten(getByTestId(cellTestID).props.style);
       expect(actual.minHeight).toBe(reference.minHeight);
       expect(actual.paddingHorizontal).toBe(reference.paddingHorizontal);
+      expect(actual.width).toBe('100%');
+      expect(cell.flex).toBe(1);
+      expect(cell.minWidth).toBe(0);
     }
   });
 });

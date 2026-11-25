@@ -409,10 +409,16 @@ export default function KanbanScreen() {
               onSelect={selectBoard}
             />
           </View>
-          <View style={[styles.toolbarActions, isMobile && styles.mobileToolbarActions]}>
-            <SecondaryButton testID="kanban-new-state" title="Nuevo estado" iconName="add" compact={compactBtn} small={isMobile} onPress={() => selected && setModal('column')} disabled={!selected} />
-            <PrimaryButton testID="kanban-new-task" title="Nueva tarea" iconName="add" compact={compactBtn} small={isMobile} onPress={openTaskModal} disabled={!selected || !columns.length} />
-            <SecondaryButton testID="kanban-archive" title="Archivo" iconName="archive-outline" compact={compactBtn} small={isMobile} onPress={() => selected && setModal('archive')} disabled={!selected} />
+          <View testID="kanban-toolbar-actions" style={[styles.toolbarActions, isMobile && styles.mobileToolbarActions]}>
+            <View testID="kanban-action-cell-new-state" style={isMobile ? styles.toolbarActionCell : undefined}>
+              <SecondaryButton testID="kanban-new-state" title="Nuevo estado" iconName="add" compact={compactBtn} small={isMobile} fullWidth={isMobile} onPress={() => selected && setModal('column')} disabled={!selected} />
+            </View>
+            <View testID="kanban-action-cell-new-task" style={isMobile ? styles.toolbarActionCell : undefined}>
+              <PrimaryButton testID="kanban-new-task" title="Nueva tarea" iconName="add" compact={compactBtn} small={isMobile} fullWidth={isMobile} onPress={openTaskModal} disabled={!selected || !columns.length} />
+            </View>
+            <View testID="kanban-action-cell-archive" style={isMobile ? styles.toolbarActionCell : undefined}>
+              <SecondaryButton testID="kanban-archive" title="Archivo" iconName="archive-outline" compact={compactBtn} small={isMobile} fullWidth={isMobile} onPress={() => selected && setModal('archive')} disabled={!selected} />
+            </View>
           </View>
         </View>
         {error ? (
@@ -868,7 +874,8 @@ toolbar: { marginBottom: theme.spacing.lg, gap: 14 },
   boardOptionText: { color: theme.colors.inkMid, fontSize: 14 },
   boardOptionTextActive: { color: theme.colors.white, fontWeight: '600' },
   toolbarActions: { flexDirection: 'row', gap: 8, flexWrap: 'wrap', alignItems: 'flex-start' },
-  mobileToolbarActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  mobileToolbarActions: { flexDirection: 'row', flexWrap: 'nowrap', alignItems: 'stretch', width: '100%', gap: 8 },
+  toolbarActionCell: { flex: 1, minWidth: 0 },
   board: { gap: 16, alignItems: 'flex-start', paddingBottom: 24, paddingRight: 16 },
   mobileBoard: { gap: 10, paddingLeft: 0, paddingRight: 8 },
   column: {
