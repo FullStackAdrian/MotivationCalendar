@@ -410,9 +410,9 @@ export default function KanbanScreen() {
             />
           </View>
           <View style={[styles.toolbarActions, isMobile && styles.mobileToolbarActions]}>
-            <SecondaryButton testID="kanban-new-state" title="Nuevo estado" iconName="add" compact={compactBtn} onPress={() => selected && setModal('column')} disabled={!selected} />
-            <PrimaryButton testID="kanban-new-task" title="Nueva tarea" iconName="add" compact={compactBtn} onPress={openTaskModal} disabled={!selected || !columns.length} />
-            <SecondaryButton testID="kanban-archive" title="Archivo" iconName="archive-outline" compact={compactBtn} onPress={() => selected && setModal('archive')} disabled={!selected} />
+            <SecondaryButton testID="kanban-new-state" title="Nuevo estado" iconName="add" compact={compactBtn} small={isMobile} onPress={() => selected && setModal('column')} disabled={!selected} />
+            <PrimaryButton testID="kanban-new-task" title="Nueva tarea" iconName="add" compact={compactBtn} small={isMobile} onPress={openTaskModal} disabled={!selected || !columns.length} />
+            <SecondaryButton testID="kanban-archive" title="Archivo" iconName="archive-outline" compact={compactBtn} small={isMobile} onPress={() => selected && setModal('archive')} disabled={!selected} />
           </View>
         </View>
         {error ? (
