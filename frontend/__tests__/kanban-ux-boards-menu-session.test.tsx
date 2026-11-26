@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet } from 'react-native';
+import { Dimensions, StyleSheet } from 'react-native';
 import { render, fireEvent, waitFor, within } from '@testing-library/react-native';
 import axios from 'axios';
 import { useAuth } from '../src/contexts/auth-context';
@@ -156,6 +156,24 @@ describeNative('UX toolbar: acciones con altura uniforme', () => {
       expect(cell.flex).toBe(1);
       expect(cell.minWidth).toBe(0);
     }
+  });
+});
+
+
+describeNative('UX Kanban móvil: una columna completa', () => {
+  it('centra una única columna con márgenes y evita que asome la siguiente', async () => {
+    mockSingleBoard();
+    const { getByTestId, findByText } = render(<KanbanScreen />);
+    await findByText('Primera tarea');
+
+    const viewportWidth = Dimensions.get('window').width;
+    const column = StyleSheet.flatten(getByTestId('kanban-column-c1').props.style);
+    const board = StyleSheet.flatten(getByTestId('kanban-columns').props.contentContainerStyle);
+
+    expect(column.width).toBe(viewportWidth - 32);
+    expect(board.paddingLeft).toBe(0);
+    expect(board.paddingRight).toBe(0);
+    expect(board.alignItems).toBe('center');
   });
 });
 
