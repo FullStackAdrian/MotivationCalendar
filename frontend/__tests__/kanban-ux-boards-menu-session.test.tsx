@@ -205,6 +205,25 @@ describeNative('UX pizarras: selector deslizable', () => {
   });
 });
 
+
+describeNative('UX Kanban móvil: una columna centrada', () => {
+  it('muestra una única columna por página, centrada y con márgenes laterales', async () => {
+    mockSingleBoard();
+    const { getByTestId, findByText } = render(<KanbanScreen />);
+    await findByText('Primera tarea');
+
+    const page = StyleSheet.flatten(getByTestId('kanban-column-page-c1').props.style);
+    const column = StyleSheet.flatten(getByTestId('kanban-column-c1').props.style);
+    expect(page.alignItems).toBe('center');
+    expect(page.width).toBeGreaterThan(column.width);
+    expect(page.width - column.width).toBe(24);
+
+    const board = StyleSheet.flatten(getByTestId('kanban-columns-scroll').props.contentContainerStyle);
+    expect(board.paddingLeft).toBe(0);
+    expect(board.paddingRight).toBe(0);
+  });
+});
+
 describeNative('UX sesión: cerrar sesión vive en ajustes', () => {
   it('kanban ya no muestra Salir en el header', async () => {
     mockSingleBoard();
