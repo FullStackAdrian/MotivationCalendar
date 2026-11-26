@@ -19,7 +19,7 @@ export default function KanbanScreen() {
   const router = useRouter();
   const { isMobile, isTablet } = useResponsive();
   const { width } = useWindowDimensions();
-  const columnWidth = isMobile ? Math.min(Math.max(width - 48, 240), 320) : 280;
+  const columnWidth = isMobile ? Math.max(width - theme.spacing.lg * 2, 240) : 280;
   const [boards, setBoards] = useState<Board[]>([]);
   const [selected, setSelected] = useState<Board | null>(null);
   const [members, setMembers] = useState<BoardMember[]>([]);
@@ -435,11 +435,11 @@ export default function KanbanScreen() {
             <PrimaryButton title="Crear pizarra" iconName="add" onPress={() => setModal('board')} />
           </View>
         ) : null}
-        <ScrollView horizontal showsHorizontalScrollIndicator contentContainerStyle={[styles.board, isMobile && styles.mobileBoard]}>
+        <ScrollView testID="kanban-columns" horizontal showsHorizontalScrollIndicator contentContainerStyle={[styles.board, isMobile && styles.mobileBoard]}>
           {columns.map((column) => {
             const columnTasks = activeTasks.filter((task) => task.columnId === column.id);
             return (
-              <View key={column.id} style={[styles.column, isMobile ? { width: columnWidth } : null]}>
+              <View key={column.id} testID={`kanban-column-${column.id}`} style={[styles.column, isMobile ? { width: columnWidth, alignSelf: 'center' } : null]}>
                 <View style={styles.columnHead}>
                   {column.isDone ? (
                     <Icon name="checkmark" size={12} color={theme.colors.done} />
@@ -877,7 +877,7 @@ toolbar: { marginBottom: theme.spacing.lg, gap: 14 },
   mobileToolbarActions: { flexDirection: 'row', flexWrap: 'nowrap', alignItems: 'stretch', width: '100%', gap: 8 },
   toolbarActionCell: { flex: 1, minWidth: 0 },
   board: { gap: 16, alignItems: 'flex-start', paddingBottom: 24, paddingRight: 16 },
-  mobileBoard: { gap: 10, paddingLeft: 0, paddingRight: 8 },
+  mobileBoard: { gap: 10, paddingLeft: 0, paddingRight: 0, alignItems: 'center' },
   column: {
     backgroundColor: 'rgba(237,233,224,0.8)',
     borderWidth: 1,
